@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Snapense",
+    "slug": "snapense-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Snapense uses the camera to scan your receipts.",
+        "NSPhotoLibraryUsageDescription": "Snapense reads receipt photos from your library.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Snapense reads receipt photos from your library.",
+          "cameraPermission": "Snapense uses the camera to scan your receipts."
+        }
+      ]
+    ],
+    "scheme": "snapense",
+    "backgroundColor": "#111827",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111827"
+    },
+    "extra": {
+      "apiBaseUrl": "http://192.168.6.240:5000/api"
+    }
+  }
+}
