@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+﻿import Constants from 'expo-constants';
 
 /**
  * Backend base URL.
@@ -12,7 +12,7 @@ import Constants from 'expo-constants';
  * the same Wi-Fi, Flask is bound to 0.0.0.0 (not 127.0.0.1), and Windows
  * Firewall allows inbound connections on the port.
  */
-const DEFAULT_API_BASE_URL = 'http://192.168.6.240:5000/api';
+const DEFAULT_API_BASE_URL = 'http://192.168.67.240:5000/api';
 
 const fromExtra = (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)
   ?.apiBaseUrl;

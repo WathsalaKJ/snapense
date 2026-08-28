@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "Snapense",
     "slug": "snapense-app",
@@ -17,6 +17,7 @@
       }
     },
     "android": {
+      "package": "com.wathsalakj.snapense",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -50,7 +51,7 @@
       "backgroundColor": "#111827"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.6.240:5000/api"
+      "apiBaseUrl": "http://192.168.67.240:5000/api"
     }
   }
 }
