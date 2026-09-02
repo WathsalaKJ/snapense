@@ -1,0 +1,24 @@
+# Backend (Flask / Python)
+snapense-backend/.venv/
+snapense-backend/venv/
+__pycache__/
+*.py[cod]
+snapense-backend/.env
+snapense-backend/dev.sqlite3
+*.sqlite3
+snapense-backend/.pytest_cache/
+snapense-backend/uploads/
+
+# App (Expo / React Native)
+snapense-app/node_modules/
+node_modules/
+.expo/
+snapense-app/dist/
+dist/
+build/
+web-build/
+snapense-app/.env*.local
+
+# OS junk files
+.DS_Store
+Thumbs.db
