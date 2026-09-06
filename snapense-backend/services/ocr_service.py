@@ -12,8 +12,6 @@ propagated into the database.
 """
 
 import json
-import mimetypes
-import os
 import re
 from datetime import datetime
 
@@ -69,18 +67,6 @@ class OcrError(RuntimeError):
 # --------------------------------------------------------------------------
 # Provider adapters
 # --------------------------------------------------------------------------
-
-
-def _read_image(image_path):
-    if not os.path.exists(image_path):
-        raise OcrError("Receipt image not found at {}.".format(image_path))
-
-    mime_type, _ = mimetypes.guess_type(image_path)
-    if mime_type is None:
-        mime_type = "image/jpeg"
-
-    with open(image_path, "rb") as handle:
-        return handle.read(), mime_type
 
 
 def _call_gemini(image_bytes, mime_type):
@@ -448,12 +434,15 @@ def map_categories(receipt):
 # --------------------------------------------------------------------------
 
 
-def extract_receipt(image_path):
-    """Full pipeline: image path -> validated, category-mapped receipt dict.
+def extract_receipt(image_bytes, mime_type):
+    """Full pipeline: image bytes -> validated, category-mapped receipt dict.
+
+    Takes raw bytes (rather than a filesystem path) so it works the same way
+    regardless of where the caller ends up persisting the image -- local disk
+    or an S3-compatible bucket.
 
     Raises OcrError when the image cannot be turned into usable data.
     """
-    image_bytes, mime_type = _read_image(image_path)
     raw_text = _call_vision_model(image_bytes, mime_type)
     receipt = validate_receipt(parse_model_json(raw_text))
 

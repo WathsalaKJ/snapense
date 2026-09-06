@@ -23,3 +23,15 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: "*"
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false
+      - key: SUPABASE_S3_REGION
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: SUPABASE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        sync: false

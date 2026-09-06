@@ -7,6 +7,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint, Index
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from utils import file_storage
+
 db = SQLAlchemy()
 
 
@@ -150,7 +152,7 @@ class Transaction(db.Model):
             "tax_amount": _decimal_to_float(self.tax_amount),
             "category_id": self.category_id,
             "category": self.category.to_dict() if self.category else None,
-            "receipt_image_url": self.receipt_image_url,
+            "receipt_image_url": file_storage.public_url(self.receipt_image_url),
             "ocr_raw_text": self.ocr_raw_text,
             "ocr_confidence": self.ocr_confidence,
             "is_anomaly": self.is_anomaly,

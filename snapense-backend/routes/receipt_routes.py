@@ -1,5 +1,7 @@
 """Receipt upload: image in, fully-populated transaction out."""
 
+import mimetypes
+
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -44,10 +46,17 @@ def upload_receipt():
             )
         )
 
-    absolute_path, relative_path = file_storage.save_receipt(upload, user_id)
+    # Read the bytes for the vision model before handing the FileStorage off
+    # to save_receipt, whose local-disk branch consumes the same stream.
+    image_bytes = upload.read()
+    upload.seek(0)
+    mime_type, _ = mimetypes.guess_type(upload.filename)
+    mime_type = mime_type or "image/jpeg"
+
+    _, relative_path = file_storage.save_receipt(upload, user_id)
 
     try:
-        receipt = ocr_service.extract_receipt(absolute_path)
+        receipt = ocr_service.extract_receipt(image_bytes, mime_type)
     except OcrError as exc:
         # Nothing usable came back, so don't leave a half-built transaction or
         # an orphaned image behind.

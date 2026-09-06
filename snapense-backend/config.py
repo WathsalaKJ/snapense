@@ -48,6 +48,17 @@ class Config:
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic", "pdf"}
 
+    # "local" (default) saves receipts to UPLOAD_FOLDER on disk, which does not
+    # survive redeploys on an ephemeral filesystem like Render's. "s3" routes
+    # them through services/storage_service.py to Supabase Storage instead;
+    # see .env.example for the SUPABASE_S3_* vars that mode requires.
+    STORAGE_PROVIDER = os.getenv("STORAGE_PROVIDER", "local").strip().lower()
+    SUPABASE_S3_ENDPOINT = os.getenv("SUPABASE_S3_ENDPOINT", "")
+    SUPABASE_S3_REGION = os.getenv("SUPABASE_S3_REGION", "")
+    SUPABASE_S3_ACCESS_KEY_ID = os.getenv("SUPABASE_S3_ACCESS_KEY_ID", "")
+    SUPABASE_S3_SECRET_ACCESS_KEY = os.getenv("SUPABASE_S3_SECRET_ACCESS_KEY", "")
+    SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "")
+
     # Receipts more than this many standard deviations above a user's category
     # average are flagged by the anomaly service.
     ANOMALY_ZSCORE_THRESHOLD = float(os.getenv("ANOMALY_ZSCORE_THRESHOLD", "2.5"))
