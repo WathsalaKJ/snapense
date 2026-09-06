@@ -54,6 +54,13 @@ class User(db.Model):
         passive_deletes=True,
         lazy="selectin",
     )
+    budgets = db.relationship(
+        "Budget",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -86,6 +93,7 @@ class Category(db.Model):
     transactions = db.relationship("Transaction", back_populates="category")
     line_items = db.relationship("LineItem", back_populates="category")
     insights = db.relationship("SpendingInsight", back_populates="category")
+    budgets = db.relationship("Budget", back_populates="category")
 
     def to_dict(self):
         return {
@@ -244,6 +252,54 @@ class SpendingInsight(db.Model):
 
     def __repr__(self):
         return "<SpendingInsight {} user={}>".format(self.id, self.user_id)
+
+
+class Budget(db.Model):
+    __tablename__ = "budgets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    category_id = db.Column(
+        db.Integer,
+        db.ForeignKey("categories.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    monthly_limit = db.Column(db.Numeric(12, 2), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    user = db.relationship("User", back_populates="budgets")
+    category = db.relationship("Category", back_populates="budgets")
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "category_id", name="uq_budgets_user_category"),
+        CheckConstraint(
+            "monthly_limit >= 0", name="ck_budgets_monthly_limit_non_negative"
+        ),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "category_id": self.category_id,
+            "category": self.category.to_dict() if self.category else None,
+            "monthly_limit": _decimal_to_float(self.monthly_limit),
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
+        }
+
+    def __repr__(self):
+        return "<Budget {} user={} category={}>".format(
+            self.id, self.user_id, self.category_id
+        )
 
 
 # Category colours. "Other" keeps a neutral grey; the rest are the app palette.

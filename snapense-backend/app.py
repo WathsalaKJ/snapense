@@ -44,6 +44,7 @@ def create_app(config_name=None):
 
 def register_blueprints(app):
     from routes.auth_routes import auth_bp
+    from routes.budget_routes import budget_bp
     from routes.dashboard_routes import dashboard_bp
     from routes.insight_routes import insight_bp
     from routes.receipt_routes import receipt_bp
@@ -54,6 +55,7 @@ def register_blueprints(app):
     app.register_blueprint(receipt_bp, url_prefix="/api/receipts")
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
     app.register_blueprint(insight_bp, url_prefix="/api/insights")
+    app.register_blueprint(budget_bp, url_prefix="/api/budgets")
 
 
 def register_error_handlers(app):
