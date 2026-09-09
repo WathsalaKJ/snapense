@@ -20,6 +20,7 @@ export type AppStackParamList = {
   TransactionDetail: { transactionId: number; startInEdit?: boolean };
   ReceiptReview: { transactionId: number; needsReview: boolean };
   Budgets: undefined;
+  BudgetHistory: undefined;
 };
 
 export type RootStackParamList = AuthStackParamList & AppStackParamList;

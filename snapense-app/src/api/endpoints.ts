@@ -4,6 +4,7 @@ import api from './client';
 import type {
   AuthResponse,
   Budget,
+  BudgetHistoryResponse,
   Category,
   DashboardSummary,
   Paginated,
@@ -118,6 +119,14 @@ export const budgetsApi = {
 
   async remove(id: number) {
     await api.delete(`/budgets/${id}`);
+  },
+
+  /** Past-months spend per current budget, compared against today's monthly_limit. Defaults to 6 months server-side. */
+  async history(months?: number) {
+    const { data } = await api.get<BudgetHistoryResponse>('/budgets/history', {
+      params: months ? { months } : undefined,
+    });
+    return data;
   },
 };
 

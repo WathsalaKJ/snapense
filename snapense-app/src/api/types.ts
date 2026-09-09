@@ -144,6 +144,25 @@ export interface Budget {
   updated_at: string;
 }
 
+export interface BudgetHistoryMonth {
+  month: string;
+  amount_spent: number;
+  monthly_limit: number;
+  over_budget: boolean;
+}
+
+export interface BudgetHistoryEntry {
+  budget_id: number;
+  category_id: number;
+  category: Category | null;
+  history: BudgetHistoryMonth[];
+}
+
+export interface BudgetHistoryResponse {
+  months: number;
+  budgets: BudgetHistoryEntry[];
+}
+
 export interface TransactionFilters {
   category?: string;
   start_date?: string;
