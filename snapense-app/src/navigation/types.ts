@@ -19,6 +19,7 @@ export type AppStackParamList = {
   Scanning: { imageUri: string };
   TransactionDetail: { transactionId: number; startInEdit?: boolean };
   ReceiptReview: { transactionId: number; needsReview: boolean };
+  Budgets: undefined;
 };
 
 export type RootStackParamList = AuthStackParamList & AppStackParamList;

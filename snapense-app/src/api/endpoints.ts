@@ -3,6 +3,7 @@
 import api from './client';
 import type {
   AuthResponse,
+  Budget,
   Category,
   DashboardSummary,
   Paginated,
@@ -97,6 +98,26 @@ export const dashboardApi = {
       params: month ? { month } : undefined,
     });
     return data;
+  },
+};
+
+export const budgetsApi = {
+  async list() {
+    const { data } = await api.get<{ budgets: Budget[] }>('/budgets');
+    return data.budgets;
+  },
+
+  /** POST also updates the limit when a budget for the category already exists. */
+  async upsert(categoryId: number, monthlyLimit: number) {
+    const { data } = await api.post<{ budget: Budget }>('/budgets', {
+      category_id: categoryId,
+      monthly_limit: monthlyLimit,
+    });
+    return data.budget;
+  },
+
+  async remove(id: number) {
+    await api.delete(`/budgets/${id}`);
   },
 };
 

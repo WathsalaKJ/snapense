@@ -133,6 +133,17 @@ export interface TransactionUpdate {
   line_items?: LineItemInput[];
 }
 
+export interface Budget {
+  id: number;
+  user_id: number;
+  category_id: number;
+  category: Category | null;
+  monthly_limit: number;
+  amount_spent_this_month: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TransactionFilters {
   category?: string;
   start_date?: string;

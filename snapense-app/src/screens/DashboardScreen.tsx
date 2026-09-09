@@ -23,15 +23,32 @@ import {
 } from '../theme';
 import type { AppStackParamList } from '../navigation/types';
 
-function ChevronIcon() {
+function ChevronIcon({ color = accent.danger }: { color?: string }) {
   return (
     <Svg width={8} height={14} viewBox="0 0 8 14" style={{ marginTop: 4 }}>
       <Path
         d="M1 1l6 6-6 6"
-        stroke={accent.danger}
+        stroke={color}
         strokeWidth={2}
         fill="none"
         strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+function BudgetIcon() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 17 17" fill="none">
+      <Path
+        d="M1.5 4.5A2 2 0 013.5 2.5h10a2 2 0 012 2v8a2 2 0 01-2 2h-10a2 2 0 01-2-2v-8z"
+        stroke={accent.teal}
+        strokeWidth={1.6}
+      />
+      <Path d="M11.5 8.5h4" stroke={accent.teal} strokeWidth={1.6} strokeLinecap="round" />
+      <Path
+        d="M11.5 8.5a1.5 1.5 0 100 3h1.5v-3h-1.5z"
+        fill={accent.teal}
       />
     </Svg>
   );
@@ -221,6 +238,44 @@ export default function DashboardScreen() {
         </View>
 
         <ErrorNote message={error} />
+
+        {/* Budgets entry point */}
+        <Pressable
+          onPress={() => navigation.navigate('Budgets')}
+          style={({ pressed }) => ({
+            backgroundColor: pressed ? colors.soft : colors.card,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: 16,
+            paddingHorizontal: 18,
+            paddingVertical: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 13,
+          })}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: tealAlpha(0.16),
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <BudgetIcon />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: colors.text, fontSize: 13.5, fontWeight: fontWeight.bold }}>
+              Budgets
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body }}>
+              Set monthly limits by category
+            </Text>
+          </View>
+          <ChevronIcon color={colors.muted} />
+        </Pressable>
 
         {/* Donut */}
         <Panel title="Spending by category" meta="tap a segment">

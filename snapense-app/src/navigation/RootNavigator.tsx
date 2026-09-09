@@ -20,6 +20,7 @@ import CaptureScreen from '../screens/CaptureScreen';
 import ScanningScreen from '../screens/ScanningScreen';
 import ReceiptReviewScreen from '../screens/ReceiptReviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import BudgetsScreen from '../screens/BudgetsScreen';
 
 import type { AppStackParamList, AuthStackParamList, TabParamList } from './types';
 
@@ -94,6 +95,11 @@ function AppNavigator() {
         name="ReceiptReview"
         component={ReceiptReviewScreen}
         options={{ title: 'Review receipt' }}
+      />
+      <AppStack.Screen
+        name="Budgets"
+        component={BudgetsScreen}
+        options={{ title: 'Budgets', headerBackTitle: 'Back' }}
       />
     </AppStack.Navigator>
   );
