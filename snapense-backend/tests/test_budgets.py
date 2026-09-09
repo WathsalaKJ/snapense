@@ -6,8 +6,10 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from models import Budget, Category, Transaction, db
+from routes.dashboard_routes import _shift_months
 
 BUDGETS_URL = "/api/budgets"
+HISTORY_URL = "/api/budgets/history"
 
 
 def _groceries_id():
@@ -261,3 +263,192 @@ class TestDeleteBudget:
 
     def test_requires_authentication(self, client):
         assert client.delete("{}/1".format(BUDGETS_URL)).status_code == 401
+
+
+class TestBudgetHistory:
+    def test_requires_authentication(self, client):
+        assert client.get(HISTORY_URL).status_code == 401
+
+    def test_empty_when_no_budgets(self, client, auth_headers):
+        response = client.get(HISTORY_URL, headers=auth_headers)
+        assert response.status_code == 200
+        assert response.get_json() == {"months": 6, "budgets": []}
+
+    def test_defaults_to_six_months_all_zero_with_no_transactions(
+        self, client, auth_headers
+    ):
+        category_id = _groceries_id()
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": category_id, "monthly_limit": 300},
+            headers=auth_headers,
+        )
+
+        response = client.get(HISTORY_URL, headers=auth_headers)
+        body = response.get_json()
+
+        assert body["months"] == 6
+        assert len(body["budgets"]) == 1
+        history = body["budgets"][0]["history"]
+        assert len(history) == 6
+        assert all(month["amount_spent"] == 0.0 for month in history)
+        assert all(month["over_budget"] is False for month in history)
+        assert all(month["monthly_limit"] == 300.0 for month in history)
+
+    def test_covers_multiple_months_including_one_with_no_transactions(
+        self, client, auth_headers, registered_user
+    ):
+        category_id = _groceries_id()
+        user_id = registered_user["user"]["id"]
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": category_id, "monthly_limit": 300},
+            headers=auth_headers,
+        )
+
+        this_month = date.today().replace(day=1)
+        two_months_ago = _shift_months(this_month, -2)
+        # Deliberately nothing seeded for the month in between - it should
+        # come back as 0, not be missing or error.
+        _seed_transaction(user_id, category_id, 120.00, when=two_months_ago)
+        _seed_transaction(user_id, category_id, 80.00, when=this_month)
+
+        response = client.get(HISTORY_URL + "?months=3", headers=auth_headers)
+        history = response.get_json()["budgets"][0]["history"]
+
+        assert [m["month"] for m in history] == [
+            two_months_ago.strftime("%Y-%m"),
+            _shift_months(this_month, -1).strftime("%Y-%m"),
+            this_month.strftime("%Y-%m"),
+        ]
+        assert history[0]["amount_spent"] == 120.00
+        assert history[1]["amount_spent"] == 0.0
+        assert history[2]["amount_spent"] == 80.00
+
+    def test_over_budget_flag_reflects_each_months_spend(
+        self, client, auth_headers, registered_user
+    ):
+        category_id = _groceries_id()
+        user_id = registered_user["user"]["id"]
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": category_id, "monthly_limit": 100},
+            headers=auth_headers,
+        )
+
+        this_month = date.today().replace(day=1)
+        last_month = _shift_months(this_month, -1)
+        _seed_transaction(user_id, category_id, 150.00, when=last_month)
+        _seed_transaction(user_id, category_id, 40.00, when=this_month)
+
+        response = client.get(HISTORY_URL + "?months=2", headers=auth_headers)
+        history = response.get_json()["budgets"][0]["history"]
+
+        assert history[0]["amount_spent"] == 150.00
+        assert history[0]["over_budget"] is True
+        assert history[1]["amount_spent"] == 40.00
+        assert history[1]["over_budget"] is False
+
+    def test_uses_the_current_monthly_limit_retroactively(
+        self, client, auth_headers, registered_user
+    ):
+        """Known simplification: Budget doesn't snapshot limits over time, so
+        every month is judged against today's limit, even months before the
+        limit changed."""
+        category_id = _groceries_id()
+        user_id = registered_user["user"]["id"]
+        last_month = _shift_months(date.today().replace(day=1), -1)
+
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": category_id, "monthly_limit": 100},
+            headers=auth_headers,
+        )
+        # 60 was within the old 100 limit...
+        _seed_transaction(user_id, category_id, 60.00, when=last_month)
+
+        # ...but the limit is lowered after the fact.
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": category_id, "monthly_limit": 50},
+            headers=auth_headers,
+        )
+
+        response = client.get(HISTORY_URL + "?months=2", headers=auth_headers)
+        history = response.get_json()["budgets"][0]["history"]
+
+        assert history[0]["monthly_limit"] == 50.0
+        assert history[0]["amount_spent"] == 60.00
+        assert history[0]["over_budget"] is True
+
+    def test_only_returns_the_current_users_budgets(self, client, auth_headers):
+        other = client.post(
+            "/api/auth/register",
+            json={
+                "email": "grace@example.com",
+                "password": "correct-horse-battery",
+                "full_name": "Grace Hopper",
+            },
+        ).get_json()
+        other_headers = {"Authorization": "Bearer {}".format(other["access_token"])}
+
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": _groceries_id(), "monthly_limit": 100},
+            headers=other_headers,
+        )
+
+        response = client.get(HISTORY_URL, headers=auth_headers)
+        assert response.get_json()["budgets"] == []
+
+    def test_months_param_is_floored_and_capped(self, client, auth_headers):
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": _groceries_id(), "monthly_limit": 100},
+            headers=auth_headers,
+        )
+
+        too_few = client.get(HISTORY_URL + "?months=0", headers=auth_headers).get_json()
+        assert too_few["months"] == 1
+        assert len(too_few["budgets"][0]["history"]) == 1
+
+        too_many = client.get(HISTORY_URL + "?months=100", headers=auth_headers).get_json()
+        assert too_many["months"] == 12
+        assert len(too_many["budgets"][0]["history"]) == 12
+
+    def test_non_numeric_months_falls_back_to_the_default(self, client, auth_headers):
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": _groceries_id(), "monthly_limit": 100},
+            headers=auth_headers,
+        )
+        response = client.get(HISTORY_URL + "?months=lots", headers=auth_headers)
+        assert response.get_json()["months"] == 6
+
+    def test_covers_multiple_budgets_independently(
+        self, client, auth_headers, registered_user
+    ):
+        groceries_id = _groceries_id()
+        dining_id = Category.query.filter_by(name="Dining").one().id
+        user_id = registered_user["user"]["id"]
+
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": groceries_id, "monthly_limit": 300},
+            headers=auth_headers,
+        )
+        client.post(
+            BUDGETS_URL,
+            json={"category_id": dining_id, "monthly_limit": 100},
+            headers=auth_headers,
+        )
+        _seed_transaction(user_id, groceries_id, 200.00)
+        _seed_transaction(user_id, dining_id, 20.00)
+
+        response = client.get(HISTORY_URL, headers=auth_headers)
+        by_category = {
+            budget["category_id"]: budget for budget in response.get_json()["budgets"]
+        }
+
+        assert by_category[groceries_id]["history"][-1]["amount_spent"] == 200.00
+        assert by_category[dining_id]["history"][-1]["amount_spent"] == 20.00
