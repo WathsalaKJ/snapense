@@ -11,6 +11,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -223,6 +224,97 @@ export function CategoryChip({
   );
 }
 
+/**
+ * Backend `icon_name` values (see snapense-backend/models.py DEFAULT_CATEGORIES)
+ * are arbitrary strings, not @expo/vector-icons glyph names, so they're mapped
+ * by hand to MaterialCommunityIcons - chosen because its "-outline" variants
+ * match the app's thin-stroke icon style (ChevronIcon, EditIcon, etc.) and it
+ * has full coverage of the seeded categories.
+ */
+const CATEGORY_ICON_MAP: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  'shopping-cart': 'cart-outline',
+  utensils: 'silverware-fork-knife',
+  car: 'car-outline',
+  film: 'movie-outline',
+  bag: 'shopping-outline',
+  zap: 'lightning-bolt-outline',
+  heart: 'heart-outline',
+  'more-horizontal': 'dots-horizontal',
+};
+
+/**
+ * Category avatar: a real icon for known `icon_name` values, falling back to
+ * the tinted-initial circle (this app's original avatar style) for anything
+ * unmapped, so a new/custom category never renders blank.
+ */
+export function CategoryIcon({
+  name,
+  iconName,
+  colorHex,
+  size = 38,
+}: {
+  name?: string | null;
+  iconName?: string | null;
+  colorHex?: string | null;
+  size?: number;
+}) {
+  const tone = resolveCategoryColor(name, colorHex);
+  const glyph = iconName ? CATEGORY_ICON_MAP[iconName] : undefined;
+  const radius = Math.round(size * 0.29);
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        backgroundColor: `${tone}24`,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {glyph ? (
+        <MaterialCommunityIcons name={glyph} size={Math.round(size * 0.5)} color={tone} />
+      ) : (
+        <Text style={{ color: tone, fontSize: Math.round(size * 0.4), fontWeight: '800' }}>
+          {(name ?? '?').trim().charAt(0).toUpperCase()}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+/** Track + fill bar, e.g. for budget progress. `ratio` is clamped for the fill width. */
+export function ProgressBar({
+  ratio,
+  color,
+  style,
+}: {
+  ratio: number;
+  color: string;
+  style?: ViewStyle;
+}) {
+  const { colors } = useTheme();
+  const clamped = Math.max(0, Math.min(1, ratio));
+  return (
+    <View
+      style={[
+        { height: 8, borderRadius: 4, backgroundColor: colors.soft, overflow: 'hidden' },
+        style,
+      ]}
+    >
+      <View
+        style={{
+          width: `${clamped * 100}%`,
+          height: '100%',
+          borderRadius: 4,
+          backgroundColor: color,
+        }}
+      />
+    </View>
+  );
+}
+
 export function AnomalyBadge({ reason }: { reason?: string | null }) {
   if (!reason) return null;
   return (
@@ -304,7 +396,15 @@ export function ErrorNote({ message }: { message?: string | null }) {
   );
 }
 
+/**
+ * "Rs. 1,250.00" - Sri Lankan Rupees. Thousands grouping is done with a regex
+ * rather than toLocaleString, since Hermes's ICU/Intl support isn't guaranteed
+ * across every Expo build target.
+ */
 export function formatCurrency(amount: number | null | undefined): string {
   const value = typeof amount === 'number' ? amount : 0;
-  return `$${value.toFixed(2)}`;
+  const sign = value < 0 ? '-' : '';
+  const [whole, decimals] = Math.abs(value).toFixed(2).split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${sign}Rs. ${grouped}.${decimals}`;
 }

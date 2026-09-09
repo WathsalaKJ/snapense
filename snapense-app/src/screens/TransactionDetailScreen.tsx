@@ -18,7 +18,7 @@ import { API_BASE_URL } from '../api/config';
 import { tokenStore } from '../api/tokenStore';
 import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
-import { ErrorNote, Loading, formatCurrency } from '../components';
+import { CategoryIcon, ErrorNote, Loading, formatCurrency } from '../components';
 import CategoryPicker from '../components/CategoryPicker';
 import {
   accent,
@@ -177,7 +177,6 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
 
   const category = categories.find((c) => c.id === categoryId) ?? transaction.category;
   const tone = resolveCategoryColor(category?.name, category?.color_hex);
-  const letter = (transaction.merchant_name ?? '?').trim().charAt(0).toUpperCase();
 
   // The receipt endpoint is JWT-protected, so the header rides with the image
   // request. Falls back to a rendered receipt if there is no photo.
@@ -361,18 +360,12 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
               borderBottomColor: colors.line,
             }}
           >
-            <View
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 11,
-                backgroundColor: `${tone}24`,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: tone, fontSize: 15, fontWeight: '800' }}>{letter}</Text>
-            </View>
+            <CategoryIcon
+              name={category?.name}
+              iconName={category?.icon_name}
+              colorHex={category?.color_hex}
+              size={38}
+            />
 
             <View style={{ flex: 1, gap: 3 }}>
               <TextInput

@@ -10,6 +10,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import type { Category } from '../api/types';
 import { accent, fontSize, fontWeight, radii, resolveCategoryColor, spacing } from '../theme';
+import { CategoryIcon } from './index';
 
 function Tick() {
   return (
@@ -137,13 +138,11 @@ export default function CategoryPicker({
                     borderColor: isCurrent ? `${tone}3D` : colors.line,
                   }}
                 >
-                  <View
-                    style={{
-                      width: 9,
-                      height: 9,
-                      borderRadius: 3,
-                      backgroundColor: tone,
-                    }}
+                  <CategoryIcon
+                    name={category.name}
+                    iconName={category.icon_name}
+                    colorHex={category.color_hex}
+                    size={26}
                   />
                   <Text
                     numberOfLines={1}

@@ -21,7 +21,7 @@ import { transactionsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
 import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
-import { ErrorNote, Loading, formatCurrency } from '../components';
+import { CategoryIcon, ErrorNote, Loading, formatCurrency } from '../components';
 import {
   accent,
   dangerAlpha,
@@ -122,11 +122,6 @@ function SwipeableRow({
 }) {
   const { colors } = useTheme();
   const swipeRef = useRef<SwipeableMethods>(null);
-  const tone = resolveCategoryColor(
-    transaction.category?.name,
-    transaction.category?.color_hex,
-  );
-  const letter = (transaction.merchant_name ?? '?').trim().charAt(0).toUpperCase();
 
   const close = () => swipeRef.current?.close();
 
@@ -191,18 +186,12 @@ function SwipeableRow({
           borderBottomColor: colors.line,
         })}
       >
-        <View
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 11,
-            backgroundColor: `${tone}24`,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: tone, fontSize: 15, fontWeight: '800' }}>{letter}</Text>
-        </View>
+        <CategoryIcon
+          name={transaction.category?.name}
+          iconName={transaction.category?.icon_name}
+          colorHex={transaction.category?.color_hex}
+          size={38}
+        />
 
         <View style={{ flex: 1, gap: 3 }}>
           <Text
