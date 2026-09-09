@@ -3,12 +3,13 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func
 
-from models import Category, SpendingInsight, Transaction, db
-from services import anomaly_service
+from models import Budget, Category, SpendingInsight, Transaction, db
+from services import anomaly_service, insight_service
+from services.insight_service import InsightGenerationError
 
 insight_bp = Blueprint("insights", __name__)
 
@@ -51,11 +52,41 @@ def _category_totals(user_id, start, end):
     )
 
 
-def build_insights(user_id, start, end):
-    """Derive insight rows for a period. Returns unsaved SpendingInsight objects."""
+def _budget_status(user_id, current_totals):
+    """This period's spend against each budget's monthly limit, if any exist."""
+    budgets = (
+        db.session.query(Budget, Category.name)
+        .join(Category, Category.id == Budget.category_id)
+        .filter(Budget.user_id == user_id)
+        .all()
+    )
+    if not budgets:
+        return []
+
+    spent_by_category = {row.id: _as_float(row.total) for row in current_totals}
+    status = []
+    for budget, category_name in budgets:
+        limit = _as_float(budget.monthly_limit)
+        spent = spent_by_category.get(budget.category_id, 0.0)
+        status.append(
+            {
+                "category": category_name,
+                "monthly_limit": round(limit, 2),
+                "spent_this_period": round(spent, 2),
+                "percent_used": round(spent / limit * 100, 1) if limit else None,
+            }
+        )
+    return status
+
+
+def _build_insight_payload(user_id, start, end):
+    """Gather the structured spending data an AI insight is generated from.
+
+    Returns None when there's no spending in the period to summarize.
+    """
     current = _category_totals(user_id, start, end)
     if not current:
-        return []
+        return None
 
     span = max((end - start).days, 1)
     previous_end = start - timedelta(days=1)
@@ -63,28 +94,9 @@ def build_insights(user_id, start, end):
     previous = {row.id: _as_float(row.total) for row in _category_totals(user_id, previous_start, previous_end)}
 
     period_total = sum(_as_float(row.total) for row in current)
-    insights = []
-
     top = current[0]
-    insights.append(
-        SpendingInsight(
-            user_id=user_id,
-            category_id=top.id,
-            period_start=start,
-            period_end=end,
-            insight_text=(
-                "{} was your largest category at {:.2f} across {} transactions, "
-                "or {:.0f}% of the {:.2f} you spent this period.".format(
-                    top.name,
-                    _as_float(top.total),
-                    int(top.count),
-                    (_as_float(top.total) / period_total * 100) if period_total else 0,
-                    period_total,
-                )
-            ),
-        )
-    )
 
+    category_changes = []
     for row in current:
         before = previous.get(row.id)
         now = _as_float(row.total)
@@ -93,20 +105,13 @@ def build_insights(user_id, start, end):
         change = (now - before) / before * 100
         if abs(change) < 25:
             continue
-        direction = "up" if change > 0 else "down"
-        insights.append(
-            SpendingInsight(
-                user_id=user_id,
-                category_id=row.id,
-                period_start=start,
-                period_end=end,
-                insight_text=(
-                    "{} spending is {} {:.0f}% versus the previous period "
-                    "({:.2f} vs {:.2f}).".format(
-                        row.name, direction, abs(change), now, before
-                    )
-                ),
-            )
+        category_changes.append(
+            {
+                "category": row.name,
+                "change_percent": round(change, 1),
+                "current_amount": round(now, 2),
+                "previous_amount": round(before, 2),
+            }
         )
 
     flagged = (
@@ -119,20 +124,44 @@ def build_insights(user_id, start, end):
         )
         .scalar()
     )
-    if flagged:
-        insights.append(
-            SpendingInsight(
-                user_id=user_id,
-                period_start=start,
-                period_end=end,
-                insight_text=(
-                    "{} transaction(s) this period were flagged as unusual and "
-                    "are worth a review.".format(int(flagged))
-                ),
-            )
-        )
 
-    return insights
+    return {
+        "period": {"start": start.isoformat(), "end": end.isoformat()},
+        "total_spent": round(period_total, 2),
+        "top_category": {
+            "name": top.name,
+            "amount": round(_as_float(top.total), 2),
+            "percent_of_total": round(
+                (_as_float(top.total) / period_total * 100) if period_total else 0, 1
+            ),
+            "transaction_count": int(top.count),
+        },
+        "category_changes": category_changes,
+        "anomaly_count": int(flagged or 0),
+        "budgets": _budget_status(user_id, current),
+    }
+
+
+def build_insights(user_id, start, end):
+    """Gather this period's spending data and turn it into one AI-written insight.
+
+    Returns an empty list when there's no spending data for the period.
+    Raises InsightGenerationError if the Gemini call fails.
+    """
+    payload = _build_insight_payload(user_id, start, end)
+    if payload is None:
+        return []
+
+    insight_text = insight_service.generate_insight_text(payload)
+
+    return [
+        SpendingInsight(
+            user_id=user_id,
+            period_start=start,
+            period_end=end,
+            insight_text=insight_text,
+        )
+    ]
 
 
 def _resolve_period():
@@ -180,12 +209,20 @@ def generate():
         return _error(error)
 
     replace = (request.get_json(silent=True) or {}).get("replace", True)
+
+    try:
+        insights = build_insights(user_id, start, end)
+    except InsightGenerationError as exc:
+        current_app.logger.warning(
+            "Insight generation failed for user %s: %s", user_id, exc
+        )
+        return _error(str(exc), 502)
+
     if replace:
         SpendingInsight.query.filter_by(
             user_id=user_id, period_start=start, period_end=end
         ).delete(synchronize_session=False)
 
-    insights = build_insights(user_id, start, end)
     db.session.add_all(insights)
     db.session.commit()
 
