@@ -51,7 +51,7 @@
       "backgroundColor": "#111827"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.150.240:5000/api"
+      "apiBaseUrl": "https://snapense.onrender.com/api"
     }
   }
 }

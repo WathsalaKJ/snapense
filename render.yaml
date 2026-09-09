@@ -18,13 +18,13 @@ services:
       - key: LLM_PROVIDER
         value: gemini
       - key: LLM_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       - key: GEMINI_API_KEY
         sync: false
       - key: CORS_ORIGINS
         value: "*"
       - key: STORAGE_PROVIDER
-        value: local
+        value: s3
       - key: SUPABASE_S3_ENDPOINT
         sync: false
       - key: SUPABASE_S3_REGION
