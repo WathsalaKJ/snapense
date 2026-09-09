@@ -130,6 +130,9 @@ export default function CaptureScreen() {
             justifyContent: 'center',
             padding: 32,
             gap: spacing.xxl,
+            width: '100%',
+            maxWidth: 420,
+            alignSelf: 'center',
           }}
         >
           <View

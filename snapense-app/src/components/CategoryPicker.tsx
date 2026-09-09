@@ -4,10 +4,11 @@
  */
 
 import React from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import type { Category } from '../api/types';
 import { accent, fontSize, fontWeight, radii, resolveCategoryColor, spacing } from '../theme';
 import { CategoryIcon } from './index';
@@ -41,29 +42,49 @@ export default function CategoryPicker({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const { isWideWeb } = useResponsive();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={isWideWeb ? 'fade' : 'slide'}
+      onRequestClose={onClose}
+    >
       <Pressable
         onPress={onClose}
-        style={{ flex: 1, backgroundColor: 'rgba(6,10,18,0.62)' }}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(6,10,18,0.62)' }]}
         accessibilityLabel="Close category picker"
       />
 
+      <View
+        pointerEvents="box-none"
+        style={
+          isWideWeb
+            ? { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }
+            : { flex: 1, justifyContent: 'flex-end' }
+        }
+      >
       <View
         style={{
           backgroundColor: colors.card,
           borderTopWidth: 1,
           borderLeftWidth: 1,
           borderRightWidth: 1,
+          borderBottomWidth: isWideWeb ? 1 : 0,
           borderColor: colors.line,
           borderTopLeftRadius: radii.sheet,
           borderTopRightRadius: radii.sheet,
+          borderBottomLeftRadius: isWideWeb ? radii.sheet : 0,
+          borderBottomRightRadius: isWideWeb ? radii.sheet : 0,
           paddingHorizontal: 20,
           paddingTop: 18,
           paddingBottom: 44,
+          width: '100%',
+          ...(isWideWeb ? { maxWidth: 480 } : null),
         }}
       >
+        {isWideWeb ? null : (
         <View
           style={{
             width: 38,
@@ -74,6 +95,7 @@ export default function CategoryPicker({
             marginBottom: 16,
           }}
         />
+        )}
 
         <View
           style={{
@@ -161,6 +183,7 @@ export default function CategoryPicker({
             })}
           </View>
         </ScrollView>
+      </View>
       </View>
     </Modal>
   );

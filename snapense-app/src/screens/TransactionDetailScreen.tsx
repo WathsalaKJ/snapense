@@ -18,7 +18,7 @@ import { API_BASE_URL } from '../api/config';
 import { tokenStore } from '../api/tokenStore';
 import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
-import { CategoryIcon, ErrorNote, Loading, formatCurrency } from '../components';
+import { CategoryIcon, ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
 import CategoryPicker from '../components/CategoryPicker';
 import {
   accent,
@@ -187,6 +187,7 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <WebContainer>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60, gap: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Text
@@ -551,6 +552,7 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
           </Text>
         </Pressable>
       </ScrollView>
+      </WebContainer>
 
       <CategoryPicker
         visible={pickerOpen}

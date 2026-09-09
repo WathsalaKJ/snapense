@@ -14,6 +14,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import {
   accent,
   dangerAlpha,
@@ -24,6 +25,33 @@ import {
   spacing,
   tealAlpha,
 } from '../theme';
+
+/**
+ * Caps and centers screen content on wide web viewports; a no-op on native
+ * and on narrow (mobile) web, where it renders as a plain flex:1 View.
+ */
+export function WebContainer({
+  children,
+  style,
+  maxWidth = 560,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  maxWidth?: number;
+}) {
+  const { isWideWeb } = useResponsive();
+  return (
+    <View
+      style={[
+        { flex: 1, width: '100%' },
+        isWideWeb ? { maxWidth, alignSelf: 'center' } : null,
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
 
 export function Screen({
   children,
