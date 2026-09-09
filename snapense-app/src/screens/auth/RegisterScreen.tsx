@@ -12,8 +12,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useIsDesktopWeb } from '../../hooks/useResponsive';
 import { errorMessage } from '../../api/client';
 import { ErrorNote, PrimaryButton } from '../../components';
+import AuthDesktopShell from '../web/AuthDesktopShell';
+import { webFonts } from '../../theme/web';
 import { accent, fontSize, fontWeight, spacing, tealAlpha } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -51,6 +54,7 @@ function passwordStrength(password: string): { label: string; ratio: number; col
 export default function RegisterScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { register } = useAuth();
+  const isDesktopWeb = useIsDesktopWeb();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -125,6 +129,140 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   const strength = passwordStrength(password);
+
+  if (isDesktopWeb) {
+    return (
+      <AuthDesktopShell>
+        <View style={{ gap: spacing.xl }}>
+          <View style={{ gap: 6 }}>
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: 30,
+                fontWeight: '600',
+                fontFamily: webFonts.display,
+              }}
+            >
+              Create account
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+              Start scanning receipts in seconds.
+            </Text>
+          </View>
+
+          <View style={{ gap: spacing.xl }}>
+            <AuthField
+              label="Full name"
+              value={fullName}
+              onChangeText={(value) => {
+                setFullName(value);
+                revalidate('fullName', value);
+              }}
+              onBlur={() => blur('fullName', fullName)}
+              error={errors.fullName}
+              placeholder="Ada Lovelace"
+              autoCapitalize="words"
+              textContentType="name"
+            />
+
+            <AuthField
+              label="Email"
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                revalidate('email', value);
+              }}
+              onBlur={() => blur('email', email)}
+              error={errors.email}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+
+            <View style={{ gap: spacing.sm }}>
+              <AuthField
+                label="Password"
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  revalidate('password', value);
+                  revalidate('confirmPassword', confirmPassword, value);
+                }}
+                onBlur={() => blur('password', password)}
+                error={errors.password}
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+                isPassword
+                autoCapitalize="none"
+                textContentType="newPassword"
+              />
+
+              {password ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colors.soft,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${strength.ratio * 100}%`,
+                        height: '100%',
+                        borderRadius: 2,
+                        backgroundColor: strength.color,
+                      }}
+                    />
+                  </View>
+                  <Text style={{ color: strength.color, fontSize: fontSize.caption }}>
+                    {strength.label}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <AuthField
+              label="Confirm password"
+              value={confirmPassword}
+              onChangeText={(value) => {
+                setConfirmPassword(value);
+                revalidate('confirmPassword', value);
+              }}
+              onBlur={() => blur('confirmPassword', confirmPassword)}
+              error={errors.confirmPassword}
+              placeholder="Repeat your password"
+              isPassword
+              autoCapitalize="none"
+              textContentType="newPassword"
+              returnKeyType="go"
+              onSubmitEditing={submit}
+            />
+
+            <ErrorNote message={formError} />
+
+            <PrimaryButton label="Create account" onPress={submit} loading={busy} />
+
+            <Pressable
+              onPress={() => navigation.navigate('Login')}
+              style={{ alignItems: 'center', paddingVertical: spacing.md }}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+                Already have an account?{' '}
+                <Text style={{ color: accent.teal, fontWeight: fontWeight.semibold }}>
+                  Sign in
+                </Text>
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </AuthDesktopShell>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>

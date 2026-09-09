@@ -4,7 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useTheme } from '../context/ThemeContext';
+import { useIsDesktopWeb } from '../hooks/useResponsive';
 import { PrimaryButton } from '../components';
+import AuthDesktopShell from './web/AuthDesktopShell';
+import { webFonts } from '../theme/web';
 import { accent, fontSize, fontWeight, spacing, tealAlpha } from '../theme';
 import type { AuthStackParamList } from '../navigation/types';
 
@@ -28,6 +31,7 @@ const SLIDES = [
 
 export default function OnboardingScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const isDesktopWeb = useIsDesktopWeb();
   const [index, setIndex] = useState(0);
   const slide = SLIDES[index];
   const isLast = index === SLIDES.length - 1;
@@ -36,6 +40,43 @@ export default function OnboardingScreen({ navigation }: Props) {
     if (isLast) navigation.replace('Login');
     else setIndex((current) => current + 1);
   };
+
+  // A swipeable slide deck is a mobile-app pattern; the desktop shell's
+  // brand panel already shows all three selling points at once (see
+  // AuthDesktopShell), so this becomes a straightforward welcome screen.
+  if (isDesktopWeb) {
+    return (
+      <AuthDesktopShell>
+        <View style={{ gap: spacing.xl }}>
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 30,
+              fontWeight: '600',
+              fontFamily: webFonts.display,
+            }}
+          >
+            Welcome to Snapense
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: fontSize.body, lineHeight: 21, fontFamily: webFonts.body }}>
+            Scan receipts, track spending by category, and set monthly budgets — all in one
+            place.
+          </Text>
+          <PrimaryButton label="Get started" onPress={() => navigation.replace('Login')} />
+          <Pressable
+            onPress={() => navigation.replace('Login')}
+            style={{ alignItems: 'center', paddingVertical: spacing.md }}
+            accessibilityRole="button"
+          >
+            <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+              Already have an account?{' '}
+              <Text style={{ color: accent.teal, fontWeight: fontWeight.semibold }}>Sign in</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </AuthDesktopShell>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>

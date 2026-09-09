@@ -12,9 +12,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useIsDesktopWeb } from '../../hooks/useResponsive';
 import { errorMessage } from '../../api/client';
 import { ErrorNote, PrimaryButton } from '../../components';
 import { CaptureIcon } from '../../components/icons';
+import AuthDesktopShell from '../web/AuthDesktopShell';
+import { webFonts } from '../../theme/web';
 import { accent, fontSize, fontWeight, spacing, tealAlpha } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -33,6 +36,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { login } = useAuth();
+  const isDesktopWeb = useIsDesktopWeb();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,6 +81,83 @@ export default function LoginScreen({ navigation }: Props) {
       setBusy(false);
     }
   };
+
+  if (isDesktopWeb) {
+    return (
+      <AuthDesktopShell>
+        <View style={{ gap: spacing.xxl }}>
+          <View style={{ gap: 6 }}>
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: 30,
+                fontWeight: '600',
+                fontFamily: webFonts.display,
+              }}
+            >
+              Welcome back
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+              Sign in to keep your spending honest.
+            </Text>
+          </View>
+
+          <View style={{ gap: spacing.xl }}>
+            <AuthField
+              label="Email"
+              value={email}
+              onChangeText={(value) => {
+                setEmail(value);
+                revalidate('email', value);
+              }}
+              onBlur={() => blur('email', email)}
+              error={errors.email}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              returnKeyType="next"
+            />
+
+            <AuthField
+              label="Password"
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                revalidate('password', value);
+              }}
+              onBlur={() => blur('password', password)}
+              error={errors.password}
+              placeholder="Your password"
+              isPassword
+              autoCapitalize="none"
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={submit}
+            />
+
+            <ErrorNote message={formError} />
+
+            <PrimaryButton label="Sign in" onPress={submit} loading={busy} />
+
+            <Pressable
+              onPress={() => navigation.navigate('Register')}
+              style={{ alignItems: 'center', paddingVertical: spacing.md }}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+                New here?{' '}
+                <Text style={{ color: accent.teal, fontWeight: fontWeight.semibold }}>
+                  Create an account
+                </Text>
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </AuthDesktopShell>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
