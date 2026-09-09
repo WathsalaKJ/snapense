@@ -4,8 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useIsDesktopWeb } from '../hooks/useResponsive';
 import { API_BASE_URL } from '../api/config';
-import { Card, PrimaryButton } from '../components';
+import { Card, PrimaryButton, WebContainer } from '../components';
+import ProfileDesktop from './web/ProfileDesktop';
+import { webSpacing } from '../theme/web';
 import {
   accent,
   fontSize,
@@ -18,6 +21,7 @@ import {
 export default function ProfileScreen() {
   const { colors, theme, isSystem, setTheme, useSystemTheme } = useTheme();
   const { user, logout } = useAuth();
+  const isDesktopWeb = useIsDesktopWeb();
 
   const options: { label: string; active: boolean; onPress: () => void }[] = [
     { label: 'Dark', active: !isSystem && theme === 'dark', onPress: () => setTheme('dark') },
@@ -25,8 +29,28 @@ export default function ProfileScreen() {
     { label: 'System', active: isSystem, onPress: useSystemTheme },
   ];
 
+  if (isDesktopWeb) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView contentContainerStyle={{ padding: webSpacing.xl }}>
+          <ProfileDesktop
+            colors={colors}
+            userName={user?.full_name}
+            userEmail={user?.email}
+            theme={theme}
+            isSystem={isSystem}
+            onSetTheme={setTheme}
+            onUseSystemTheme={useSystemTheme}
+            onSignOut={logout}
+          />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+      <WebContainer>
       <ScrollView contentContainerStyle={{ padding: screenPadding, gap: spacing.xl }}>
         <Text
           style={{
@@ -129,6 +153,7 @@ export default function ProfileScreen() {
           style={{ backgroundColor: accent.danger }}
         />
       </ScrollView>
+      </WebContainer>
     </SafeAreaView>
   );
 }
