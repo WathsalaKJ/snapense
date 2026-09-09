@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
-import { NavigationContainer, type Theme } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useIsDesktopWeb } from '../hooks/useResponsive';
 import { Loading } from '../components';
 import { accent, fontSize, fontWeight } from '../theme';
 import TabBar from './TabBar';
+import WebSidebar, { resolveSidebarActive, type SidebarNavKey } from './WebSidebar';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -21,6 +23,7 @@ import ScanningScreen from '../screens/ScanningScreen';
 import ReceiptReviewScreen from '../screens/ReceiptReviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BudgetsScreen from '../screens/BudgetsScreen';
+import BudgetHistoryScreen from '../screens/BudgetHistoryScreen';
 
 import type { AppStackParamList, AuthStackParamList, TabParamList } from './types';
 
@@ -101,13 +104,21 @@ function AppNavigator() {
         component={BudgetsScreen}
         options={{ title: 'Budgets', headerBackTitle: 'Back' }}
       />
+      <AppStack.Screen
+        name="BudgetHistory"
+        component={BudgetHistoryScreen}
+        options={{ title: 'Budget History', headerBackTitle: 'Back' }}
+      />
     </AppStack.Navigator>
   );
 }
 
 export default function RootNavigator() {
-  const { isAuthenticated, isRestoring, isReturning } = useAuth();
+  const { isAuthenticated, isRestoring, isReturning, user, logout } = useAuth();
   const { colors, theme } = useTheme();
+  const isDesktopWeb = useIsDesktopWeb();
+  const navigationRef = useNavigationContainerRef();
+  const [activeRouteName, setActiveRouteName] = useState<string | undefined>(undefined);
 
   const navTheme: Theme = {
     dark: theme === 'dark',
@@ -136,9 +147,43 @@ export default function RootNavigator() {
     );
   }
 
+  // WebSidebar lives outside the tab/stack navigators (a full-height side
+  // rail doesn't fit createBottomTabNavigator's `tabBar` slot), so it
+  // navigates imperatively via this ref rather than useNavigation().
+  const handleSidebarNavigate = (key: SidebarNavKey) => {
+    if (key === 'Budgets') {
+      navigationRef.navigate('Budgets');
+    } else {
+      navigationRef.navigate('Tabs', { screen: key });
+    }
+  };
+
   return (
-    <NavigationContainer theme={navTheme}>
-      {isAuthenticated ? <AppNavigator /> : <AuthNavigator isReturning={isReturning} />}
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onStateChange={
+        isDesktopWeb ? () => setActiveRouteName(navigationRef.getCurrentRoute()?.name) : undefined
+      }
+    >
+      {isAuthenticated && isDesktopWeb ? (
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <WebSidebar
+            active={resolveSidebarActive(activeRouteName)}
+            onNavigate={handleSidebarNavigate}
+            userName={user?.full_name}
+            userEmail={user?.email}
+            onSignOut={logout}
+          />
+          <View style={{ flex: 1 }}>
+            <AppNavigator />
+          </View>
+        </View>
+      ) : isAuthenticated ? (
+        <AppNavigator />
+      ) : (
+        <AuthNavigator isReturning={isReturning} />
+      )}
     </NavigationContainer>
   );
 }

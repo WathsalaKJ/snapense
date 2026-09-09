@@ -21,7 +21,9 @@ import { transactionsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
 import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
-import { CategoryIcon, ErrorNote, Loading, formatCurrency } from '../components';
+import { useIsDesktopWeb } from '../hooks/useResponsive';
+import { CategoryIcon, ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
+import { webFonts, webSpacing } from '../theme/web';
 import {
   accent,
   dangerAlpha,
@@ -230,9 +232,183 @@ function SwipeableRow({
   );
 }
 
+/** Column widths shared between the header and every row, so cells line up. */
+const DESKTOP_COLS = { category: 160, date: 120, amount: 130, actions: 76 };
+
+function DesktopTableHeader() {
+  const { colors } = useTheme();
+  const labelStyle = {
+    color: colors.muted,
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
+    fontFamily: webFonts.body,
+  };
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 13,
+        paddingHorizontal: 20,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.line,
+      }}
+    >
+      <View style={{ width: 38 }} />
+      <Text style={[labelStyle, { flex: 1 }]}>Merchant</Text>
+      <Text style={[labelStyle, { width: DESKTOP_COLS.category }]}>Category</Text>
+      <Text style={[labelStyle, { width: DESKTOP_COLS.date }]}>Date</Text>
+      <Text style={[labelStyle, { width: DESKTOP_COLS.amount, textAlign: 'right' }]}>Amount</Text>
+      <View style={{ width: DESKTOP_COLS.actions }} />
+    </View>
+  );
+}
+
+function DesktopTransactionRow({
+  transaction,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  transaction: Transaction;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable onPress={onOpen}>
+      {({ hovered }: any) => (
+        <View
+          style={{
+            backgroundColor: hovered ? colors.soft : 'transparent',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 13,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.line,
+          }}
+        >
+          <CategoryIcon
+            name={transaction.category?.name}
+            iconName={transaction.category?.icon_name}
+            colorHex={transaction.category?.color_hex}
+            size={34}
+          />
+
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              color: colors.text,
+              fontSize: fontSize.baseLg,
+              fontWeight: fontWeight.semibold,
+              fontFamily: webFonts.body,
+            }}
+          >
+            {transaction.merchant_name ?? 'Unknown merchant'}
+          </Text>
+
+          <View style={{ width: DESKTOP_COLS.category }}>
+            {transaction.category ? (
+              <View
+                style={{
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 9,
+                  paddingVertical: 3,
+                  borderRadius: radii.chip,
+                  backgroundColor: `${resolveCategoryColor(transaction.category.name, transaction.category.color_hex)}22`,
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: resolveCategoryColor(transaction.category.name, transaction.category.color_hex),
+                    fontSize: fontSize.caption,
+                    fontWeight: fontWeight.semibold,
+                  }}
+                >
+                  {transaction.category.name}
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ color: colors.muted2, fontSize: fontSize.caption }}>—</Text>
+            )}
+          </View>
+
+          <Text style={{ width: DESKTOP_COLS.date, color: colors.muted, fontSize: fontSize.small, fontFamily: webFonts.body }}>
+            {transaction.transaction_date ?? '—'}
+          </Text>
+
+          <View style={{ width: DESKTOP_COLS.amount, alignItems: 'flex-end' }}>
+            <Text style={{ color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>
+              {formatCurrency(transaction.total_amount)}
+            </Text>
+            {transaction.is_anomaly ? (
+              <Text style={{ color: accent.danger, fontSize: fontSize.tiny }}>Unusual</Text>
+            ) : null}
+          </View>
+
+          <View
+            style={{
+              width: DESKTOP_COLS.actions,
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              gap: 6,
+              opacity: hovered ? 1 : 0,
+            }}
+          >
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              hitSlop={4}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                backgroundColor: tealAlpha(0.16),
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <EditIcon />
+            </Pressable>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              hitSlop={4}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                backgroundColor: dangerAlpha(0.16),
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <DeleteIcon />
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 export default function TransactionsListScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const isDesktopWeb = useIsDesktopWeb();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -314,6 +490,7 @@ export default function TransactionsListScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+      <WebContainer maxWidth={isDesktopWeb ? 980 : 720}>
       <View style={{ paddingHorizontal: 20, paddingTop: spacing.md, gap: spacing.lg }}>
         <View
           style={{
@@ -324,7 +501,12 @@ export default function TransactionsListScreen() {
         >
           <View>
             <Text
-              style={{ color: colors.text, fontSize: 26, fontWeight: fontWeight.bold }}
+              style={{
+                color: colors.text,
+                fontSize: isDesktopWeb ? 34 : 26,
+                fontWeight: isDesktopWeb ? '600' : fontWeight.bold,
+                ...(isDesktopWeb ? { fontFamily: webFonts.display, letterSpacing: 0.2 } : null),
+              }}
             >
               Transactions
             </Text>
@@ -462,7 +644,7 @@ export default function TransactionsListScreen() {
         <ErrorNote message={error} />
       </View>
 
-      {transactions.length > 0 ? (
+      {transactions.length > 0 && !isDesktopWeb ? (
         <Text
           style={{
             color: colors.muted2,
@@ -479,7 +661,27 @@ export default function TransactionsListScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
+        ListHeaderComponent={
+          isDesktopWeb && transactions.length > 0 ? (
+            <View style={{ paddingTop: webSpacing.md }}>
+              <DesktopTableHeader />
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) =>
+          isDesktopWeb ? (
+            <DesktopTransactionRow
+              transaction={item}
+              onOpen={() => navigation.navigate('TransactionDetail', { transactionId: item.id })}
+              onEdit={() =>
+                navigation.navigate('TransactionDetail', {
+                  transactionId: item.id,
+                  startInEdit: true,
+                })
+              }
+              onDelete={() => confirmDelete(item)}
+            />
+          ) : (
           <SwipeableRow
             transaction={item}
             onOpen={() =>
@@ -560,6 +762,7 @@ export default function TransactionsListScreen() {
           </View>
         }
       />
+      </WebContainer>
     </SafeAreaView>
   );
 }

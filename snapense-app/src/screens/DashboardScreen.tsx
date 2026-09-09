@@ -5,13 +5,16 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 
-import { dashboardApi, insightsApi } from '../api/endpoints';
+import { budgetsApi, dashboardApi, insightsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
-import type { DashboardSummary, SpendingInsight, Transaction } from '../api/types';
+import type { Budget, DashboardSummary, SpendingInsight, Transaction } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { ErrorNote, Loading, formatCurrency } from '../components';
+import { useIsDesktopWeb } from '../hooks/useResponsive';
+import { ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
 import { DonutChart, DonutLegend, TrendChart } from '../components/charts';
+import DashboardDesktopGrid from './web/DashboardDesktopGrid';
+import { webContentMaxWidth, webSpacing } from '../theme/web';
 import {
   accent,
   dangerAlpha,
@@ -121,30 +124,37 @@ export default function DashboardScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const isDesktopWeb = useIsDesktopWeb();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [insights, setInsights] = useState<SpendingInsight[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Budgets only feed the desktop grid's summary card - mobile's Dashboard
+  // never fetched them (it just links to the Budgets screen), so this stays
+  // conditional to avoid an extra network round-trip there.
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [summaryData, insightData] = await Promise.all([
+      const [summaryData, insightData, budgetData] = await Promise.all([
         dashboardApi.summary(),
         insightsApi.list(10),
+        isDesktopWeb ? budgetsApi.list() : Promise.resolve<Budget[]>([]),
       ]);
       setSummary(summaryData);
       setInsights(insightData);
+      setBudgets(budgetData);
     } catch (err) {
       setError(errorMessage(err, 'Could not load your dashboard.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isDesktopWeb]);
 
   useFocusEffect(
     useCallback(() => {
@@ -178,8 +188,51 @@ export default function DashboardScreen() {
   const openAnomaly = (transaction: Transaction) =>
     navigation.navigate('TransactionDetail', { transactionId: transaction.id });
 
+  if (isDesktopWeb) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: webSpacing.xl,
+            maxWidth: webContentMaxWidth,
+            width: '100%',
+            alignSelf: 'center',
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                load();
+              }}
+              tintColor={accent.teal}
+            />
+          }
+        >
+          <ErrorNote message={error} />
+          <DashboardDesktopGrid
+            greeting={`Hi ${user?.full_name?.split(' ')[0] ?? 'there'}, welcome back`}
+            month={month}
+            slices={slices}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(slice) =>
+              setSelectedCategory((current) => (current === slice.id ? null : slice.id))
+            }
+            monthlyTrend={summary?.monthly_trend ?? []}
+            anomalies={anomalies}
+            insights={insights}
+            budgets={budgets}
+            onOpenAnomaly={openAnomaly}
+            onOpenBudgets={() => navigation.navigate('Budgets')}
+          />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+      <WebContainer>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 18 }}
         refreshControl={
@@ -455,6 +508,7 @@ export default function DashboardScreen() {
           </View>
         ) : null}
       </ScrollView>
+      </WebContainer>
     </SafeAreaView>
   );
 }

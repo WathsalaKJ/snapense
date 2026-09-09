@@ -54,6 +54,20 @@ export function DashboardIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+export function BudgetsIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22" fill="none">
+      <Path
+        d="M2 6.5A2.5 2.5 0 014.5 4h13A2.5 2.5 0 0120 6.5v9A2.5 2.5 0 0117.5 18h-13A2.5 2.5 0 012 15.5v-9z"
+        stroke={color}
+        strokeWidth={2}
+      />
+      <Path d="M14.5 11h4.5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M14.5 11a1.9 1.9 0 100 3.8h4.5V11h-4.5z" fill={color} />
+    </Svg>
+  );
+}
+
 export function ProfileIcon({ color, size = 22 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 22 22" fill="none">

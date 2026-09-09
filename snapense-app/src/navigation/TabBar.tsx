@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import {
   CaptureIcon,
   DashboardIcon,
@@ -23,6 +24,9 @@ import {
 } from '../components/icons';
 import { accent, tealAlpha } from '../theme';
 import type { TabParamList } from './types';
+
+/** Matches the widest constrained screen content, so the bar lines up with it. */
+const WEB_MAX_WIDTH = 720;
 
 const BAR_HEIGHT = 88;
 const CAPTURE_SIZE = 46;
@@ -39,6 +43,10 @@ const ICONS: Record<keyof TabParamList, React.ComponentType<IconProps>> = {
 export default function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { isWideWeb, isDesktopWeb } = useResponsive();
+
+  // Desktop web gets WebSidebar (see RootNavigator) instead of a bottom bar.
+  if (isDesktopWeb) return null;
 
   return (
     <View
@@ -51,6 +59,8 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
         backgroundColor: colors.card,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: colors.soft,
+        width: '100%',
+        ...(isWideWeb ? { maxWidth: WEB_MAX_WIDTH, alignSelf: 'center' as const } : null),
       }}
     >
       {state.routes.map((route, index) => {

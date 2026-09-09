@@ -5,6 +5,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -12,13 +13,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
 
 import { budgetsApi, transactionsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
 import type { Budget, Category } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
+import { useIsDesktopWeb, useResponsive } from '../hooks/useResponsive';
+import type { AppStackParamList } from '../navigation/types';
 import {
   CategoryIcon,
   ErrorNote,
@@ -26,8 +30,11 @@ import {
   Loading,
   PrimaryButton,
   ProgressBar,
+  WebContainer,
   formatCurrency,
 } from '../components';
+import BudgetsDesktopGrid from './web/BudgetsDesktopGrid';
+import { webContentMaxWidth, webSpacing } from '../theme/web';
 import { accent, dangerAlpha, fontSize, fontWeight, radii, spacing } from '../theme';
 
 function DeleteIcon() {
@@ -40,6 +47,19 @@ function DeleteIcon() {
         fill="none"
         strokeLinecap="round"
       />
+    </Svg>
+  );
+}
+
+function HistoryIcon({ color }: { color: string }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+      <Path
+        d="M8 1a7 7 0 100 14A7 7 0 008 1z"
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <Path d="M8 4.5V8l2.5 1.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -180,6 +200,7 @@ function BudgetModal({
   onSubmit: (amount: number) => void;
 }) {
   const { colors } = useTheme();
+  const { isWideWeb } = useResponsive();
   const [value, setValue] = useState('');
 
   useEffect(() => {
@@ -190,28 +211,47 @@ function BudgetModal({
   const isValid = value.trim() !== '' && Number.isFinite(amount) && amount >= 0;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={isWideWeb ? 'fade' : 'slide'}
+      onRequestClose={onClose}
+    >
       <Pressable
         onPress={onClose}
-        style={{ flex: 1, backgroundColor: 'rgba(6,10,18,0.62)' }}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(6,10,18,0.62)' }]}
         accessibilityLabel="Close budget editor"
       />
 
+      <View
+        pointerEvents="box-none"
+        style={
+          isWideWeb
+            ? { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }
+            : { flex: 1, justifyContent: 'flex-end' }
+        }
+      >
       <View
         style={{
           backgroundColor: colors.card,
           borderTopWidth: 1,
           borderLeftWidth: 1,
           borderRightWidth: 1,
+          borderBottomWidth: isWideWeb ? 1 : 0,
           borderColor: colors.line,
           borderTopLeftRadius: radii.sheet,
           borderTopRightRadius: radii.sheet,
+          borderBottomLeftRadius: isWideWeb ? radii.sheet : 0,
+          borderBottomRightRadius: isWideWeb ? radii.sheet : 0,
           paddingHorizontal: 20,
           paddingTop: 18,
           paddingBottom: 36,
           gap: 16,
+          width: '100%',
+          ...(isWideWeb ? { maxWidth: 420 } : null),
         }}
       >
+        {isWideWeb ? null : (
         <View
           style={{
             width: 38,
@@ -221,6 +261,7 @@ function BudgetModal({
             alignSelf: 'center',
           }}
         />
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <CategoryIcon
@@ -271,12 +312,16 @@ function BudgetModal({
           loading={submitting}
         />
       </View>
+      </View>
     </Modal>
   );
 }
 
 export default function BudgetsScreen() {
   const { colors } = useTheme();
+  const isDesktopWeb = useIsDesktopWeb();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const viewHistory = () => navigation.navigate('BudgetHistory');
 
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -366,8 +411,53 @@ export default function BudgetsScreen() {
     (category) => !budgets.some((budget) => budget.category_id === category.id),
   );
 
+  if (isDesktopWeb) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: webSpacing.xl,
+            maxWidth: webContentMaxWidth,
+            width: '100%',
+            alignSelf: 'center',
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                load();
+              }}
+              tintColor={accent.teal}
+            />
+          }
+        >
+          <ErrorNote message={error} />
+          <BudgetsDesktopGrid
+            budgets={budgets}
+            unbudgeted={unbudgeted}
+            onEdit={(budget) => openModal(budget.category, budget)}
+            onAddNew={(category) => openModal(category, null)}
+            onDelete={confirmDelete}
+            onViewHistory={viewHistory}
+          />
+        </ScrollView>
+
+        <BudgetModal
+          visible={modalVisible}
+          category={modalCategory}
+          budget={modalBudget}
+          submitting={submitting}
+          onClose={() => setModalVisible(false)}
+          onSubmit={submitBudget}
+        />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom']}>
+      <WebContainer>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 18 }}
         refreshControl={
@@ -381,11 +471,32 @@ export default function BudgetsScreen() {
           />
         }
       >
-        <View>
-          <Text style={{ color: colors.text, fontSize: 26, fontWeight: '800' }}>Budgets</Text>
-          <Text style={{ color: colors.muted, fontSize: fontSize.body, marginTop: 3 }}>
-            Monthly spending limits by category
-          </Text>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <View>
+            <Text style={{ color: colors.text, fontSize: 26, fontWeight: '800' }}>Budgets</Text>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body, marginTop: 3 }}>
+              Monthly spending limits by category
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={viewHistory}
+            accessibilityLabel="View budget history"
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.soft,
+              borderWidth: 1,
+              borderColor: colors.line,
+            }}
+          >
+            <HistoryIcon color={colors.muted} />
+          </Pressable>
         </View>
 
         <ErrorNote message={error} />
@@ -476,6 +587,7 @@ export default function BudgetsScreen() {
           </View>
         ) : null}
       </ScrollView>
+      </WebContainer>
 
       <BudgetModal
         visible={modalVisible}
