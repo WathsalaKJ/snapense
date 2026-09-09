@@ -30,15 +30,19 @@ export function DonutChart({
   onSelect,
   centerLabel,
   centerSub,
+  size = DONUT_SIZE,
 }: {
   slices: DonutSlice[];
   selectedId?: number | null;
   onSelect?: (slice: DonutSlice) => void;
   centerLabel: string;
   centerSub: string;
+  /** Rendered pixel size; the internal 200x200 viewBox geometry is unchanged. Defaults to the original mobile size. */
+  size?: number;
 }) {
   const { colors } = useTheme();
   const total = slices.reduce((sum, slice) => sum + slice.total, 0);
+  const labelScale = size / DONUT_SIZE;
 
   // Walk the circumference, converting each share into a dash segment.
   let cursor = 0;
@@ -56,9 +60,16 @@ export function DonutChart({
   });
 
   return (
-    <View style={{ width: DONUT_SIZE, height: DONUT_SIZE }}>
-      <Svg width={DONUT_SIZE} height={DONUT_SIZE} viewBox="0 0 200 200">
-        <G rotation={-90} originX={100} originY={100}>
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} viewBox="0 0 200 200">
+        {/*
+          A `transform` string (rather than the `rotation`/`originX`/`originY`
+          props) composes identically on native but, unlike those props,
+          doesn't make react-native-svg's web renderer write an invalid
+          `transform-origin` DOM attribute (React DOM only recognizes the
+          camelCase style property, not that attribute name).
+        */}
+        <G transform="rotate(-90 100 100)">
           {total === 0 ? (
             <Circle
               cx={100}
@@ -101,10 +112,10 @@ export function DonutChart({
           gap: 2,
         }}
       >
-        <Text style={{ color: colors.text, fontSize: 19, fontWeight: '800' }}>
+        <Text style={{ color: colors.text, fontSize: Math.round(19 * labelScale), fontWeight: '800' }}>
           {centerLabel}
         </Text>
-        <Text style={{ color: colors.muted, fontSize: 10 }}>{centerSub}</Text>
+        <Text style={{ color: colors.muted, fontSize: Math.round(10 * labelScale) }}>{centerSub}</Text>
       </View>
     </View>
   );
@@ -182,7 +193,24 @@ const PAD_X = 10;
 const TOP_Y = 20;
 const BASE_Y = 110;
 
-export function TrendChart({ points }: { points: TrendPointData[] }) {
+export function TrendChart({
+  points,
+  height,
+  pointColor,
+  referenceValue,
+}: {
+  points: TrendPointData[];
+  /** Rendered SVG height; geometry scales proportionally. Omit for the original mobile height. */
+  height?: number;
+  /**
+   * Per-point marker color (e.g. flagging over-budget months on
+   * BudgetHistoryScreen). Omit for the original single-teal endpoint dot -
+   * Dashboard's trend card never passes this, so its rendering is unchanged.
+   */
+  pointColor?: (point: TrendPointData, index: number) => string;
+  /** Draws a dashed horizontal threshold line (e.g. a budget's monthly_limit) at this value. */
+  referenceValue?: number;
+}) {
   const { colors } = useTheme();
 
   if (points.length === 0) {
@@ -193,31 +221,44 @@ export function TrendChart({ points }: { points: TrendPointData[] }) {
     );
   }
 
-  const max = Math.max(1, ...points.map((point) => point.total));
+  // scale === 1 (and every value below reduces to its original constant) when
+  // `height` is omitted, so native/mobile-web rendering is pixel-identical.
+  const chartHeight = height ?? CHART_HEIGHT;
+  const scale = chartHeight / CHART_HEIGHT;
+  const topY = TOP_Y * scale;
+  const baseY = BASE_Y * scale;
+
+  const max = Math.max(
+    1,
+    referenceValue ?? 0,
+    ...points.map((point) => point.total),
+  );
   const step =
     points.length > 1 ? (CHART_WIDTH - PAD_X * 2) / (points.length - 1) : 0;
+  const valueToY = (value: number) => baseY - (value / max) * (baseY - topY);
 
   const coords = points.map((point, index) => {
     const x = PAD_X + index * step;
-    const y = BASE_Y - (point.total / max) * (BASE_Y - TOP_Y);
+    const y = valueToY(point.total);
     return { x, y, ...point };
   });
 
   const line = coords.map((c) => `${c.x},${c.y}`).join(' ');
-  const area = `${line} ${coords[coords.length - 1].x},${BASE_Y} ${coords[0].x},${BASE_Y}`;
+  const area = `${line} ${coords[coords.length - 1].x},${baseY} ${coords[0].x},${baseY}`;
   const last = coords[coords.length - 1];
+  const referenceY = referenceValue != null ? valueToY(referenceValue) : null;
 
   return (
     <View>
       <Svg
         width="100%"
-        height={CHART_HEIGHT}
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+        height={chartHeight}
+        viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
         preserveAspectRatio="none"
       >
-        <Line x1={10} y1={30} x2={330} y2={30} stroke="rgba(148,163,184,0.28)" strokeWidth={1} />
-        <Line x1={10} y1={70} x2={330} y2={70} stroke="rgba(148,163,184,0.28)" strokeWidth={1} />
-        <Line x1={10} y1={110} x2={330} y2={110} stroke="rgba(148,163,184,0.38)" strokeWidth={1} />
+        <Line x1={10} y1={30 * scale} x2={330} y2={30 * scale} stroke="rgba(148,163,184,0.28)" strokeWidth={1} />
+        <Line x1={10} y1={70 * scale} x2={330} y2={70 * scale} stroke="rgba(148,163,184,0.28)" strokeWidth={1} />
+        <Line x1={10} y1={110 * scale} x2={330} y2={110 * scale} stroke="rgba(148,163,184,0.38)" strokeWidth={1} />
 
         <Polyline points={area} fill="rgba(45,212,191,0.10)" stroke="none" />
         <Polyline
@@ -229,8 +270,28 @@ export function TrendChart({ points }: { points: TrendPointData[] }) {
           strokeLinejoin="round"
         />
 
-        <Circle cx={last.x} cy={last.y} r={8.5} fill="rgba(45,212,191,0.25)" />
-        <Circle cx={last.x} cy={last.y} r={4.5} fill={accent.teal} />
+        {referenceY != null ? (
+          <Line
+            x1={10}
+            y1={referenceY}
+            x2={330}
+            y2={referenceY}
+            stroke="rgba(148,163,184,0.65)"
+            strokeWidth={1.3}
+            strokeDasharray="4 4"
+          />
+        ) : null}
+
+        {pointColor ? (
+          coords.map((c, index) => (
+            <Circle key={c.month} cx={c.x} cy={c.y} r={5 * scale} fill={pointColor(points[index], index)} />
+          ))
+        ) : (
+          <>
+            <Circle cx={last.x} cy={last.y} r={8.5 * scale} fill="rgba(45,212,191,0.25)" />
+            <Circle cx={last.x} cy={last.y} r={4.5 * scale} fill={accent.teal} />
+          </>
+        )}
       </Svg>
 
       <View
