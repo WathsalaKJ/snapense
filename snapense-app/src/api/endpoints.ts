@@ -142,6 +142,9 @@ export const insightsApi = {
     const { data } = await api.post<{ insights: SpendingInsight[]; generated: number }>(
       '/insights/generate',
       { start_date: startDate, end_date: endDate },
+      // Round-trips through Gemini, so allow well past the default (matches
+      // receiptsApi.upload's timeout override for the same reason).
+      { timeout: 30000 },
     );
     return data;
   },

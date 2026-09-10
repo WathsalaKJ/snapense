@@ -1,9 +1,9 @@
 /**
  * Desktop-web dashboard layout: a real multi-column grid (hero stat, donut,
- * budgets summary in row one; trend + insights in row two) instead of the
- * mobile single-column stack. Rendered by DashboardScreen only when
- * useIsDesktopWeb() is true - it owns no data fetching of its own, just
- * layout, so the mobile JSX in DashboardScreen.tsx is untouched.
+ * budgets summary in row one; a full-width AI insight; trend + alerts in row
+ * two) instead of the mobile single-column stack. Rendered by DashboardScreen
+ * only when useIsDesktopWeb() is true - it owns no data fetching of its own,
+ * just layout, so the mobile JSX in DashboardScreen.tsx is untouched.
  */
 
 import React from 'react';
@@ -12,15 +12,9 @@ import { Pressable, Text, View, type ViewStyle } from 'react-native';
 import type { Budget, MonthSummary, SpendingInsight, Transaction, TrendPoint } from '../../api/types';
 import { useTheme } from '../../context/ThemeContext';
 import { DonutChart, DonutLegend, TrendChart, type DonutSlice } from '../../components/charts';
+import InsightCard from '../../components/InsightCard';
 import { ProgressBar, formatCurrency } from '../../components';
-import {
-  accent,
-  dangerAlpha,
-  fontSize,
-  fontWeight,
-  resolveCategoryColor,
-  tealAlpha,
-} from '../../theme';
+import { accent, dangerAlpha, fontSize, fontWeight, tealAlpha } from '../../theme';
 import { webFonts, webRadii, webShadow, webSpacing } from '../../theme/web';
 
 function cardStyle(colors: { card: string; line: string }): ViewStyle {
@@ -78,7 +72,9 @@ export default function DashboardDesktopGrid({
   onSelectCategory,
   monthlyTrend,
   anomalies,
-  insights,
+  insight,
+  regeneratingInsight,
+  onRegenerateInsight,
   budgets,
   onOpenAnomaly,
   onOpenBudgets,
@@ -90,7 +86,9 @@ export default function DashboardDesktopGrid({
   onSelectCategory: (slice: DonutSlice) => void;
   monthlyTrend: TrendPoint[];
   anomalies: Transaction[];
-  insights: SpendingInsight[];
+  insight: SpendingInsight | null;
+  regeneratingInsight: boolean;
+  onRegenerateInsight: () => void;
   budgets: Budget[];
   onOpenAnomaly: (transaction: Transaction) => void;
   onOpenBudgets: () => void;
@@ -307,7 +305,28 @@ export default function DashboardDesktopGrid({
         </View>
       </View>
 
-      {/* Row 2: trend / insights */}
+      {/* AI insight - full-width and tealAlpha-tinted like the hero stat card,
+          so this natural-language feature reads as first-class rather than
+          a small tucked-away card. */}
+      <View
+        style={{
+          backgroundColor: tealAlpha(0.08),
+          borderWidth: 1,
+          borderColor: tealAlpha(0.22),
+          borderRadius: webRadii.hero,
+          padding: webSpacing.lg,
+          ...({ boxShadow: webShadow.hero } as object),
+        }}
+      >
+        <InsightCard
+          insight={insight}
+          regenerating={regeneratingInsight}
+          onRegenerate={onRegenerateInsight}
+          variant="desktop"
+        />
+      </View>
+
+      {/* Row 2: trend / alerts */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: webSpacing.lg }}>
         <View style={{ flexBasis: '62%', flexGrow: 1, minWidth: 420, ...cardStyle(colors) }}>
           <CardHeader title="Monthly trend" />
@@ -315,7 +334,7 @@ export default function DashboardDesktopGrid({
         </View>
 
         <View style={{ flexBasis: '32%', flexGrow: 1, minWidth: 280, ...cardStyle(colors), gap: webSpacing.md }}>
-          <CardHeader title="Insights" />
+          <CardHeader title="Alerts" />
 
           {anomalies.map((transaction) => (
             <Pressable key={`anomaly-${transaction.id}`} onPress={() => onOpenAnomaly(transaction)}>
@@ -341,34 +360,9 @@ export default function DashboardDesktopGrid({
             </Pressable>
           ))}
 
-          {insights.map((insight) => {
-            const tone = insight.category
-              ? resolveCategoryColor(insight.category.name, insight.category.color_hex)
-              : '#FDBA74';
-            return (
-              <View
-                key={`insight-${insight.id}`}
-                style={{
-                  backgroundColor: colors.soft,
-                  borderRadius: 12,
-                  padding: webSpacing.sm,
-                  gap: 3,
-                }}
-              >
-                <Text style={{ color: tone, fontSize: fontSize.small, fontWeight: fontWeight.bold }}>
-                  {insight.category?.name ?? 'Spending insight'}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: fontSize.caption, lineHeight: 16, fontFamily: webFonts.body }}>
-                  {insight.insight_text}
-                </Text>
-              </View>
-            );
-          })}
-
-          {anomalies.length === 0 && insights.length === 0 ? (
+          {anomalies.length === 0 ? (
             <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
-              Record a few more receipts and Snapense will start spotting trends and unusual
-              charges.
+              No unusual charges this period — you're all clear.
             </Text>
           ) : null}
         </View>

@@ -13,17 +13,10 @@ import { useTheme } from '../context/ThemeContext';
 import { useIsDesktopWeb } from '../hooks/useResponsive';
 import { ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
 import { DonutChart, DonutLegend, TrendChart } from '../components/charts';
+import InsightCard from '../components/InsightCard';
 import DashboardDesktopGrid from './web/DashboardDesktopGrid';
 import { webContentMaxWidth, webSpacing } from '../theme/web';
-import {
-  accent,
-  dangerAlpha,
-  fontSize,
-  fontWeight,
-  resolveCategoryColor,
-  spacing,
-  tealAlpha,
-} from '../theme';
+import { accent, dangerAlpha, fontSize, fontWeight, tealAlpha } from '../theme';
 import type { AppStackParamList } from '../navigation/types';
 
 function ChevronIcon({ color = accent.danger }: { color?: string }) {
@@ -52,21 +45,6 @@ function BudgetIcon() {
       <Path
         d="M11.5 8.5a1.5 1.5 0 100 3h1.5v-3h-1.5z"
         fill={accent.teal}
-      />
-    </Svg>
-  );
-}
-
-function TrendUpIcon() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 16 16">
-      <Path
-        d="M1 12l4-5 3 3 4-6 3 4"
-        stroke="#FDBA74"
-        strokeWidth={1.8}
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </Svg>
   );
@@ -127,12 +105,13 @@ export default function DashboardScreen() {
   const isDesktopWeb = useIsDesktopWeb();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [insights, setInsights] = useState<SpendingInsight[]>([]);
+  const [insight, setInsight] = useState<SpendingInsight | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [regeneratingInsight, setRegeneratingInsight] = useState(false);
 
   // Budgets only feed the desktop grid's summary card - mobile's Dashboard
   // never fetched them (it just links to the Budgets screen), so this stays
@@ -142,11 +121,11 @@ export default function DashboardScreen() {
     try {
       const [summaryData, insightData, budgetData] = await Promise.all([
         dashboardApi.summary(),
-        insightsApi.list(10),
+        insightsApi.list(1),
         isDesktopWeb ? budgetsApi.list() : Promise.resolve<Budget[]>([]),
       ]);
       setSummary(summaryData);
-      setInsights(insightData);
+      setInsight(insightData[0] ?? null);
       setBudgets(budgetData);
     } catch (err) {
       setError(errorMessage(err, 'Could not load your dashboard.'));
@@ -161,6 +140,24 @@ export default function DashboardScreen() {
       load();
     }, [load]),
   );
+
+  // Matches BudgetsScreen's submitBudget: a dedicated loading flag, and
+  // failures land in the same top-of-screen `error`/ErrorNote as everything
+  // else. A failed regenerate leaves the last-fetched `insight` untouched -
+  // the backend itself is careful not to delete the prior insight on a
+  // failed generation, and the UI shouldn't undo that by clearing it here.
+  const regenerateInsight = useCallback(async () => {
+    setRegeneratingInsight(true);
+    setError(null);
+    try {
+      const result = await insightsApi.generate();
+      setInsight(result.insights[0] ?? null);
+    } catch (err) {
+      setError(errorMessage(err, 'Could not generate an insight right now.'));
+    } finally {
+      setRegeneratingInsight(false);
+    }
+  }, []);
 
   if (loading) return <Loading label="Loading your spending…" />;
 
@@ -220,7 +217,9 @@ export default function DashboardScreen() {
             }
             monthlyTrend={summary?.monthly_trend ?? []}
             anomalies={anomalies}
-            insights={insights}
+            insight={insight}
+            regeneratingInsight={regeneratingInsight}
+            onRegenerateInsight={regenerateInsight}
             budgets={budgets}
             onOpenAnomaly={openAnomaly}
             onOpenBudgets={() => navigation.navigate('Budgets')}
@@ -330,6 +329,25 @@ export default function DashboardScreen() {
           <ChevronIcon color={colors.muted} />
         </Pressable>
 
+        {/* AI insight - a dedicated panel (not a cramped stat row) since this
+            is natural-language content and deserves room to read. */}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: 18,
+            padding: 20,
+          }}
+        >
+          <InsightCard
+            insight={insight}
+            regenerating={regeneratingInsight}
+            onRegenerate={regenerateInsight}
+            variant="mobile"
+          />
+        </View>
+
         {/* Donut */}
         <Panel title="Spending by category" meta="tap a segment">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 14 }}>
@@ -360,152 +378,79 @@ export default function DashboardScreen() {
           </View>
         </Panel>
 
-        <Text
-          style={{
-            color: colors.muted,
-            fontSize: fontSize.small,
-            fontWeight: fontWeight.semibold,
-            letterSpacing: 0.7,
-            textTransform: 'uppercase',
-            marginHorizontal: 4,
-            marginBottom: -6,
-          }}
-        >
-          Insights
-        </Text>
-
-        {/* Anomaly alerts, in the design's rose accent. */}
-        {anomalies.map((transaction) => (
-          <Pressable
-            key={`anomaly-${transaction.id}`}
-            onPress={() => openAnomaly(transaction)}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? dangerAlpha(0.16) : dangerAlpha(0.1),
-              borderWidth: 1,
-              borderColor: dangerAlpha(0.35),
-              borderRadius: 16,
-              paddingHorizontal: 18,
-              paddingVertical: 16,
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              gap: 13,
-            })}
-          >
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
-                backgroundColor: dangerAlpha(0.2),
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: accent.danger, fontWeight: '800', fontSize: 16 }}>
-                !
-              </Text>
-            </View>
-
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text
-                style={{
-                  color: accent.danger,
-                  fontSize: 13.5,
-                  fontWeight: fontWeight.bold,
-                }}
-              >
-                Unusual charge detected
-              </Text>
-              <Text style={{ color: colors.text, fontSize: fontSize.body, lineHeight: 19 }}>
-                {transaction.merchant_name ?? 'A transaction'}{' '}
-                {formatCurrency(transaction.total_amount)}
-                {transaction.transaction_date ? ` on ${transaction.transaction_date}` : ''}
-                {transaction.anomaly_reason ? ` — ${transaction.anomaly_reason}` : ''} Tap
-                to review.
-              </Text>
-            </View>
-
-            <ChevronIcon />
-          </Pressable>
-        ))}
-
-        {/* Stored insights */}
-        {insights.map((insight) => {
-          const tone = insight.category
-            ? resolveCategoryColor(insight.category.name, insight.category.color_hex)
-            : '#FDBA74';
-          return (
-            <View
-              key={`insight-${insight.id}`}
-              style={{
-                backgroundColor: colors.card,
-                borderWidth: 1,
-                borderColor: colors.line,
-                borderRadius: 16,
-                paddingHorizontal: 18,
-                paddingVertical: 16,
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                gap: 13,
-              }}
-            >
-              <View
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  backgroundColor: `${tone}26`,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <TrendUpIcon />
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text
-                  style={{
-                    color: colors.text,
-                    fontSize: 13.5,
-                    fontWeight: fontWeight.bold,
-                  }}
-                >
-                  {insight.category?.name ?? 'Spending insight'}
-                </Text>
-                <Text
-                  style={{ color: colors.muted, fontSize: fontSize.body, lineHeight: 19 }}
-                >
-                  {insight.insight_text}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-
-        {anomalies.length === 0 && insights.length === 0 ? (
-          <View
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.line,
-              borderRadius: 16,
-              padding: 18,
-              gap: spacing.sm,
-            }}
-          >
+        {/* Anomaly alerts, in the design's rose accent. Nothing renders when
+            there are none - unlike the AI insight above, "no alerts" isn't
+            worth a dedicated empty-state card on a single-column stack. */}
+        {anomalies.length > 0 ? (
+          <>
             <Text
               style={{
-                color: colors.text,
-                fontSize: 13.5,
-                fontWeight: fontWeight.bold,
+                color: colors.muted,
+                fontSize: fontSize.small,
+                fontWeight: fontWeight.semibold,
+                letterSpacing: 0.7,
+                textTransform: 'uppercase',
+                marginHorizontal: 4,
+                marginBottom: -6,
               }}
             >
-              No insights yet
+              Alerts
             </Text>
-            <Text style={{ color: colors.muted, fontSize: fontSize.body, lineHeight: 19 }}>
-              Record a few more receipts and Snapense will start spotting trends and
-              unusual charges.
-            </Text>
-          </View>
+
+            {anomalies.map((transaction) => (
+              <Pressable
+                key={`anomaly-${transaction.id}`}
+                onPress={() => openAnomaly(transaction)}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? dangerAlpha(0.16) : dangerAlpha(0.1),
+                  borderWidth: 1,
+                  borderColor: dangerAlpha(0.35),
+                  borderRadius: 16,
+                  paddingHorizontal: 18,
+                  paddingVertical: 16,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 13,
+                })}
+              >
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    backgroundColor: dangerAlpha(0.2),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: accent.danger, fontWeight: '800', fontSize: 16 }}>
+                    !
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text
+                    style={{
+                      color: accent.danger,
+                      fontSize: 13.5,
+                      fontWeight: fontWeight.bold,
+                    }}
+                  >
+                    Unusual charge detected
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: fontSize.body, lineHeight: 19 }}>
+                    {transaction.merchant_name ?? 'A transaction'}{' '}
+                    {formatCurrency(transaction.total_amount)}
+                    {transaction.transaction_date ? ` on ${transaction.transaction_date}` : ''}
+                    {transaction.anomaly_reason ? ` — ${transaction.anomaly_reason}` : ''} Tap
+                    to review.
+                  </Text>
+                </View>
+
+                <ChevronIcon />
+              </Pressable>
+            ))}
+          </>
         ) : null}
       </ScrollView>
       </WebContainer>
