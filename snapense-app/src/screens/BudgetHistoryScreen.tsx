@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import Svg, { Path } from 'react-native-svg';
 
 import { budgetsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
@@ -19,6 +20,21 @@ import { TrendChart, type TrendPointData } from '../components/charts';
 import { accent, fontSize, fontWeight } from '../theme';
 
 const HISTORY_MONTHS = 6;
+
+function HistoryIcon({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 16 16" fill="none">
+      <Path d="M8 1a7 7 0 100 14A7 7 0 008 1z" stroke={color} strokeWidth={1.5} />
+      <Path
+        d="M8 4.5V8l2.5 1.5"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 function CategoryHistoryCard({ entry }: { entry: BudgetHistoryEntry }) {
   const { colors } = useTheme();
@@ -176,6 +192,7 @@ export default function BudgetHistoryScreen() {
           </View>
         ) : (
           <EmptyState
+            icon={<HistoryIcon color={accent.teal} />}
             title="No budgets yet"
             body="Set a monthly limit on a category from the Budgets screen to start building up its history."
           />

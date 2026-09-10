@@ -14,6 +14,7 @@ import { useIsDesktopWeb } from '../hooks/useResponsive';
 import { ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
 import { DonutChart, DonutLegend, TrendChart } from '../components/charts';
 import InsightCard from '../components/InsightCard';
+import { DashboardSkeleton } from '../components/Skeleton';
 import DashboardDesktopGrid from './web/DashboardDesktopGrid';
 import { webContentMaxWidth, webSpacing } from '../theme/web';
 import { accent, dangerAlpha, fontSize, fontWeight, tealAlpha } from '../theme';
@@ -159,7 +160,19 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  if (loading) return <Loading label="Loading your spending…" />;
+  if (loading) {
+    // The multi-column desktop grid doesn't have a matching skeleton yet
+    // (out of scope for this pass) - it keeps the plain spinner; mobile's
+    // single-column layout gets a shaped placeholder instead.
+    if (isDesktopWeb) return <Loading label="Loading your spending…" />;
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+        <WebContainer>
+          <DashboardSkeleton />
+        </WebContainer>
+      </SafeAreaView>
+    );
+  }
 
   const month = summary?.month;
   const slices =

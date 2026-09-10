@@ -369,7 +369,17 @@ export function Loading({ label }: { label?: string }) {
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body?: string }) {
+export function EmptyState({
+  title,
+  body,
+  icon,
+  action,
+}: {
+  title: string;
+  body?: string;
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   const { colors } = useTheme();
   return (
     <View style={{ alignItems: 'center', paddingVertical: 48, gap: spacing.md }}>
@@ -381,8 +391,12 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
           backgroundColor: tealAlpha(0.12),
           borderWidth: 1,
           borderColor: tealAlpha(0.3),
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-      />
+      >
+        {icon}
+      </View>
       <Text
         style={{
           color: colors.text,
@@ -404,6 +418,7 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
           {body}
         </Text>
       ) : null}
+      {action}
     </View>
   );
 }
