@@ -1,5 +1,7 @@
 # Snapense
 
+[![Backend tests](https://github.com/WathsalaKJ/snapense/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/WathsalaKJ/snapense/actions/workflows/backend-tests.yml)
+
 Mobile expense tracker with OCR receipt scanning and spending anomaly detection.
 
 | Folder | What it is |
