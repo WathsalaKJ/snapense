@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "Snapense",
     "slug": "snapense-app",
@@ -41,15 +41,20 @@
           "photosPermission": "Snapense reads receipt photos from your library.",
           "cameraPermission": "Snapense uses the camera to scan your receipts."
         }
+      ],
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#111827"
+        }
       ]
     ],
     "scheme": "snapense",
     "backgroundColor": "#111827",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#111827"
-    },
     "extra": {
       "apiBaseUrl": "https://snapense.onrender.com/api"
     }
