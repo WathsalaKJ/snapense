@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -20,6 +19,7 @@ import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
 import { CategoryIcon, ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
 import CategoryPicker from '../components/CategoryPicker';
+import ConfirmDialog from '../components/ConfirmDialog';
 import {
   accent,
   fontSize,
@@ -62,6 +62,7 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [editing, setEditing] = useState(Boolean(startInEdit));
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const [merchant, setMerchant] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -147,22 +148,14 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const confirmDelete = () => {
-    Alert.alert('Delete transaction?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await transactionsApi.remove(transactionId);
-            navigation.goBack();
-          } catch (err) {
-            setError(errorMessage(err, 'Could not delete this transaction.'));
-          }
-        },
-      },
-    ]);
+  const performDelete = async () => {
+    setDeleteDialogOpen(false);
+    try {
+      await transactionsApi.remove(transactionId);
+      navigation.goBack();
+    } catch (err) {
+      setError(errorMessage(err, 'Could not delete this transaction.'));
+    }
   };
 
   if (loading) return <Loading />;
@@ -531,7 +524,7 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
         </View>
 
         <Pressable
-          onPress={confirmDelete}
+          onPress={() => setDeleteDialogOpen(true)}
           style={{
             marginTop: spacing.md,
             alignItems: 'center',
@@ -563,6 +556,14 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={deleteDialogOpen}
+        title="Delete transaction?"
+        message="This cannot be undone."
+        onConfirm={performDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
       />
     </View>
   );

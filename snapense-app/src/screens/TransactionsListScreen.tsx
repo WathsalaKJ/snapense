@@ -1,6 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -22,7 +22,9 @@ import { errorMessage } from '../api/client';
 import type { Category, Transaction } from '../api/types';
 import { useTheme } from '../context/ThemeContext';
 import { useIsDesktopWeb } from '../hooks/useResponsive';
-import { CategoryIcon, ErrorNote, Loading, WebContainer, formatCurrency } from '../components';
+import { CategoryIcon, ErrorNote, WebContainer, formatCurrency } from '../components';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { TransactionsSkeleton } from '../components/Skeleton';
 import { webFonts, webSpacing } from '../theme/web';
 import {
   accent,
@@ -107,6 +109,14 @@ function SearchIcon({ color, size = 15 }: { color: string; size?: number }) {
     <Svg width={size} height={size} viewBox="0 0 15 15" fill="none">
       <Circle cx={6.5} cy={6.5} r={5} stroke={color} strokeWidth={1.8} />
       <Path d="M10.5 10.5L14 14" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlusIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <Path d="M8 1.5v13M1.5 8h13" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -419,6 +429,7 @@ export default function TransactionsListScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
 
   const load = useCallback(
     async (categoryName: string, rangeKey: RangeKey, query: string) => {
@@ -451,31 +462,20 @@ export default function TransactionsListScreen() {
     }, [load, category, range, search]),
   );
 
-  const confirmDelete = (transaction: Transaction) => {
-    Alert.alert(
-      'Delete transaction?',
-      `${transaction.merchant_name ?? 'This transaction'} will be removed. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            // Optimistic: drop it locally, restore on failure.
-            const previous = transactions;
-            setTransactions((current) =>
-              current.filter((item) => item.id !== transaction.id),
-            );
-            try {
-              await transactionsApi.remove(transaction.id);
-            } catch (err) {
-              setTransactions(previous);
-              setError(errorMessage(err, 'Could not delete that transaction.'));
-            }
-          },
-        },
-      ],
-    );
+  const performDelete = async () => {
+    if (!pendingDelete) return;
+    const transaction = pendingDelete;
+    setPendingDelete(null);
+
+    // Optimistic: drop it locally, restore on failure.
+    const previous = transactions;
+    setTransactions((current) => current.filter((item) => item.id !== transaction.id));
+    try {
+      await transactionsApi.remove(transaction.id);
+    } catch (err) {
+      setTransactions(previous);
+      setError(errorMessage(err, 'Could not delete that transaction.'));
+    }
   };
 
   const clearFilters = () => {
@@ -486,7 +486,15 @@ export default function TransactionsListScreen() {
 
   const filtersActive = category !== ALL || range !== 'all' || search.trim() !== '';
 
-  if (loading) return <Loading label="Loading transactions…" />;
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+        <WebContainer maxWidth={isDesktopWeb ? 980 : 720}>
+          <TransactionsSkeleton />
+        </WebContainer>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
@@ -515,22 +523,39 @@ export default function TransactionsListScreen() {
             </Text>
           </View>
 
-          <Pressable
-            onPress={() => setSearchOpen((open) => !open)}
-            accessibilityLabel="Search transactions"
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 19,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: searchOpen ? tealAlpha(0.16) : colors.soft,
-              borderWidth: 1,
-              borderColor: searchOpen ? tealAlpha(0.4) : colors.line,
-            }}
-          >
-            <SearchIcon color={searchOpen ? accent.teal : colors.muted} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => setSearchOpen((open) => !open)}
+              accessibilityLabel="Search transactions"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: searchOpen ? tealAlpha(0.16) : colors.soft,
+                borderWidth: 1,
+                borderColor: searchOpen ? tealAlpha(0.4) : colors.line,
+              }}
+            >
+              <SearchIcon color={searchOpen ? accent.teal : colors.muted} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.navigate('AddTransaction')}
+              accessibilityLabel="Add a transaction manually"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: accent.teal,
+              }}
+            >
+              <PlusIcon color="#06231F" />
+            </Pressable>
+          </View>
         </View>
 
         {searchOpen ? (
@@ -668,34 +693,44 @@ export default function TransactionsListScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) =>
-          isDesktopWeb ? (
-            <DesktopTransactionRow
-              transaction={item}
-              onOpen={() => navigation.navigate('TransactionDetail', { transactionId: item.id })}
-              onEdit={() =>
-                navigation.navigate('TransactionDetail', {
-                  transactionId: item.id,
-                  startInEdit: true,
-                })
-              }
-              onDelete={() => confirmDelete(item)}
-            />
+        renderItem={({ item, index }) => {
+          // A brief staggered entrance for the rows visible on first load -
+          // capped to the first screenful so it plays once, not every time a
+          // row scrolls back into view from FlatList's virtualization.
+          const entering = index < 12 ? FadeInDown.delay(index * 28).duration(260) : undefined;
+
+          return isDesktopWeb ? (
+            <Animated.View entering={entering}>
+              <DesktopTransactionRow
+                transaction={item}
+                onOpen={() => navigation.navigate('TransactionDetail', { transactionId: item.id })}
+                onEdit={() =>
+                  navigation.navigate('TransactionDetail', {
+                    transactionId: item.id,
+                    startInEdit: true,
+                  })
+                }
+                onDelete={() => setPendingDelete(item)}
+              />
+            </Animated.View>
           ) : (
-          <SwipeableRow
-            transaction={item}
-            onOpen={() =>
-              navigation.navigate('TransactionDetail', { transactionId: item.id })
-            }
-            onEdit={() =>
-              navigation.navigate('TransactionDetail', {
-                transactionId: item.id,
-                startInEdit: true,
-              })
-            }
-            onDelete={() => confirmDelete(item)}
-          />
-        )}
+            <Animated.View entering={entering}>
+              <SwipeableRow
+                transaction={item}
+                onOpen={() =>
+                  navigation.navigate('TransactionDetail', { transactionId: item.id })
+                }
+                onEdit={() =>
+                  navigation.navigate('TransactionDetail', {
+                    transactionId: item.id,
+                    startInEdit: true,
+                  })
+                }
+                onDelete={() => setPendingDelete(item)}
+              />
+            </Animated.View>
+          );
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -763,6 +798,14 @@ export default function TransactionsListScreen() {
         }
       />
       </WebContainer>
+
+      <ConfirmDialog
+        visible={pendingDelete != null}
+        title="Delete transaction?"
+        message={`${pendingDelete?.merchant_name ?? 'This transaction'} will be removed. This cannot be undone.`}
+        onConfirm={performDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </SafeAreaView>
   );
 }

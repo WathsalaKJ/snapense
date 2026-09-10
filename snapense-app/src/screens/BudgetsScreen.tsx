@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -25,6 +24,7 @@ import { useIsDesktopWeb, useResponsive } from '../hooks/useResponsive';
 import type { AppStackParamList } from '../navigation/types';
 import {
   CategoryIcon,
+  EmptyState,
   ErrorNote,
   Field,
   Loading,
@@ -33,6 +33,8 @@ import {
   WebContainer,
   formatCurrency,
 } from '../components';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { BudgetsSkeleton } from '../components/Skeleton';
 import BudgetsDesktopGrid from './web/BudgetsDesktopGrid';
 import { webContentMaxWidth, webSpacing } from '../theme/web';
 import { accent, dangerAlpha, fontSize, fontWeight, radii, spacing } from '../theme';
@@ -47,6 +49,20 @@ function DeleteIcon() {
         fill="none"
         strokeLinecap="round"
       />
+    </Svg>
+  );
+}
+
+function WalletIcon({ color }: { color: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 17 17" fill="none">
+      <Path
+        d="M1.5 4.5A2 2 0 013.5 2.5h10a2 2 0 012 2v8a2 2 0 01-2 2h-10a2 2 0 01-2-2v-8z"
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <Path d="M11.5 8.5h4" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M11.5 8.5a1.5 1.5 0 100 3h1.5v-3h-1.5z" fill={color} />
     </Svg>
   );
 }
@@ -333,6 +349,7 @@ export default function BudgetsScreen() {
   const [modalCategory, setModalCategory] = useState<Category | null>(null);
   const [modalBudget, setModalBudget] = useState<Budget | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Budget | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -380,32 +397,32 @@ export default function BudgetsScreen() {
     }
   };
 
-  const confirmDelete = (budget: Budget) => {
-    Alert.alert(
-      'Delete budget?',
-      `The limit for ${budget.category?.name ?? 'this category'} will be removed. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            // Optimistic: drop it locally, restore on failure.
-            const previous = budgets;
-            setBudgets((current) => current.filter((item) => item.id !== budget.id));
-            try {
-              await budgetsApi.remove(budget.id);
-            } catch (err) {
-              setBudgets(previous);
-              setError(errorMessage(err, 'Could not delete that budget.'));
-            }
-          },
-        },
-      ],
-    );
+  const performDeleteBudget = async () => {
+    if (!pendingDelete) return;
+    const budget = pendingDelete;
+    setPendingDelete(null);
+
+    // Optimistic: drop it locally, restore on failure.
+    const previous = budgets;
+    setBudgets((current) => current.filter((item) => item.id !== budget.id));
+    try {
+      await budgetsApi.remove(budget.id);
+    } catch (err) {
+      setBudgets(previous);
+      setError(errorMessage(err, 'Could not delete that budget.'));
+    }
   };
 
-  if (loading) return <Loading label="Loading your budgets…" />;
+  if (loading) {
+    if (isDesktopWeb) return <Loading label="Loading your budgets…" />;
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom']}>
+        <WebContainer>
+          <BudgetsSkeleton />
+        </WebContainer>
+      </SafeAreaView>
+    );
+  }
 
   const unbudgeted = categories.filter(
     (category) => !budgets.some((budget) => budget.category_id === category.id),
@@ -438,7 +455,7 @@ export default function BudgetsScreen() {
             unbudgeted={unbudgeted}
             onEdit={(budget) => openModal(budget.category, budget)}
             onAddNew={(category) => openModal(category, null)}
-            onDelete={confirmDelete}
+            onDelete={setPendingDelete}
             onViewHistory={viewHistory}
           />
         </ScrollView>
@@ -450,6 +467,14 @@ export default function BudgetsScreen() {
           submitting={submitting}
           onClose={() => setModalVisible(false)}
           onSubmit={submitBudget}
+        />
+
+        <ConfirmDialog
+          visible={pendingDelete != null}
+          title="Delete budget?"
+          message={`The limit for ${pendingDelete?.category?.name ?? 'this category'} will be removed. This cannot be undone.`}
+          onConfirm={performDeleteBudget}
+          onCancel={() => setPendingDelete(null)}
         />
       </View>
     );
@@ -509,7 +534,7 @@ export default function BudgetsScreen() {
                 key={budget.id}
                 budget={budget}
                 onEdit={() => openModal(budget.category, budget)}
-                onDelete={() => confirmDelete(budget)}
+                onDelete={() => setPendingDelete(budget)}
               />
             ))}
           </View>
@@ -566,25 +591,11 @@ export default function BudgetsScreen() {
         ) : null}
 
         {budgets.length === 0 && unbudgeted.length === 0 ? (
-          <View
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.line,
-              borderRadius: 16,
-              padding: 18,
-              gap: spacing.sm,
-            }}
-          >
-            <Text
-              style={{ color: colors.text, fontSize: 13.5, fontWeight: fontWeight.bold }}
-            >
-              No categories yet
-            </Text>
-            <Text style={{ color: colors.muted, fontSize: fontSize.body, lineHeight: 19 }}>
-              Scan a few receipts first, then come back to set monthly spending limits.
-            </Text>
-          </View>
+          <EmptyState
+            icon={<WalletIcon color={accent.teal} />}
+            title="No categories yet"
+            body="Scan a few receipts first, then come back to set monthly spending limits."
+          />
         ) : null}
       </ScrollView>
       </WebContainer>
@@ -596,6 +607,14 @@ export default function BudgetsScreen() {
         submitting={submitting}
         onClose={() => setModalVisible(false)}
         onSubmit={submitBudget}
+      />
+
+      <ConfirmDialog
+        visible={pendingDelete != null}
+        title="Delete budget?"
+        message={`The limit for ${pendingDelete?.category?.name ?? 'this category'} will be removed. This cannot be undone.`}
+        onConfirm={performDeleteBudget}
+        onCancel={() => setPendingDelete(null)}
       />
     </SafeAreaView>
   );
