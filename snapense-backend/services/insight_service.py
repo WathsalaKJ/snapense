@@ -22,7 +22,16 @@ Rules:
 - Call out any category with a large swing versus the previous period, if any are listed.
 - Mention the anomaly count and any budgets close to or over their limit, if present.
 - Plain text only: no markdown formatting, no headings, no emoji.
+- All amounts in the data are in Sri Lankan Rupees. The numbers are plain (e.g. 6500 or 6500.0)
+  with no currency symbol -- you must add one yourself. Always format amounts as "Rs. X,XXX.XX"
+  (thousands separator, two decimal places), for example write "Rs. 6,500.00", not "$6,500" or
+  "6500". Never use "$" or the word "dollars" anywhere in your response.
 """
+
+
+def _build_prompt(payload):
+    """Render the prompt sent to the text model for a given spending payload."""
+    return PROMPT_TEMPLATE.format(payload=json.dumps(payload, indent=2))
 
 
 class InsightGenerationError(RuntimeError):
@@ -46,7 +55,7 @@ def _call_gemini(payload):
         ) from exc
 
     client = genai.Client(api_key=api_key)
-    prompt = PROMPT_TEMPLATE.format(payload=json.dumps(payload, indent=2))
+    prompt = _build_prompt(payload)
 
     try:
         response = client.models.generate_content(

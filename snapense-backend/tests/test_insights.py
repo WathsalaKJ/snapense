@@ -257,3 +257,14 @@ class TestInsightServiceProviderDispatch:
         with app.app_context():
             with pytest.raises(insight_service.InsightGenerationError):
                 insight_service._call_text_model({"total_spent": 1})
+
+    def test_prompt_instructs_model_to_use_lkr_not_dollars(self):
+        """The payload's amounts are raw numbers, so the prompt itself must tell
+        Gemini to render them as Rs. -- otherwise it defaults to $.
+        """
+        prompt = insight_service._build_prompt({"total_spent": 6500})
+
+        assert "Sri Lankan Rupees" in prompt
+        assert "Rs." in prompt
+        assert "Rs. 6,500.00" in prompt
+        assert "Never use \"$\"" in prompt
