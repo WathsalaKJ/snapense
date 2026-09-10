@@ -128,6 +128,7 @@ class Transaction(db.Model):
     receipt_image_url = db.Column(db.String(500), nullable=True)
     ocr_raw_text = db.Column(db.Text, nullable=True)
     ocr_confidence = db.Column(db.Float, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
     is_anomaly = db.Column(db.Boolean, nullable=False, default=False, index=True)
     anomaly_reason = db.Column(db.String(300), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
@@ -163,6 +164,7 @@ class Transaction(db.Model):
             "receipt_image_url": file_storage.public_url(self.receipt_image_url),
             "ocr_raw_text": self.ocr_raw_text,
             "ocr_confidence": self.ocr_confidence,
+            "notes": self.notes,
             "is_anomaly": self.is_anomaly,
             "anomaly_reason": self.anomaly_reason,
             "created_at": _iso(self.created_at),

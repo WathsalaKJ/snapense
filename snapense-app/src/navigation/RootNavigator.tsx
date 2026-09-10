@@ -18,6 +18,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsListScreen from '../screens/TransactionsListScreen';
 import TransactionDetailScreen from '../screens/TransactionDetailScreen';
+import AddTransactionScreen from '../screens/AddTransactionScreen';
 import CaptureScreen from '../screens/CaptureScreen';
 import ScanningScreen from '../screens/ScanningScreen';
 import ReceiptReviewScreen from '../screens/ReceiptReviewScreen';
@@ -93,6 +94,11 @@ function AppNavigator() {
         name="TransactionDetail"
         component={TransactionDetailScreen}
         options={{ title: 'Transaction', headerBackTitle: 'Back' }}
+      />
+      <AppStack.Screen
+        name="AddTransaction"
+        component={AddTransactionScreen}
+        options={{ title: 'Add Transaction', headerBackTitle: 'Back' }}
       />
       <AppStack.Screen
         name="ReceiptReview"

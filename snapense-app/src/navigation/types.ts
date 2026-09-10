@@ -18,6 +18,7 @@ export type AppStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   Scanning: { imageUri: string };
   TransactionDetail: { transactionId: number; startInEdit?: boolean };
+  AddTransaction: undefined;
   ReceiptReview: { transactionId: number; needsReview: boolean };
   Budgets: undefined;
   BudgetHistory: undefined;

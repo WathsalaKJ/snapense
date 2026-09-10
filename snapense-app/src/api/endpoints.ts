@@ -12,6 +12,7 @@ import type {
   Paginated,
   SpendingInsight,
   Transaction,
+  TransactionCreate,
   TransactionFilters,
   TransactionUpdate,
   UploadReceiptResponse,
@@ -52,6 +53,12 @@ export const transactionsApi = {
 
   async detail(id: number) {
     const { data } = await api.get<{ transaction: Transaction }>(`/transactions/${id}`);
+    return data.transaction;
+  },
+
+  /** Manual entry - no receipt image (cash purchases, or starting fresh after a bad OCR read). */
+  async create(entry: TransactionCreate) {
+    const { data } = await api.post<{ transaction: Transaction }>('/transactions', entry);
     return data.transaction;
   },
 

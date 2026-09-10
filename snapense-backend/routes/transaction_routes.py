@@ -129,11 +129,31 @@ def get_transaction(transaction_id):
 @transaction_bp.post("")
 @jwt_required()
 def create_transaction():
+    """Create a transaction directly (no receipt image) - e.g. manual/cash entry."""
     user_id = _current_user_id()
     data = request.get_json(silent=True) or {}
 
     if data.get("total_amount") is None:
         return _error("total_amount is required.")
+    try:
+        total_amount = float(data["total_amount"])
+    except (TypeError, ValueError):
+        return _error("total_amount must be a number.")
+    if total_amount < 0:
+        return _error("total_amount must be non-negative.")
+
+    tax_amount = None
+    if data.get("tax_amount") is not None:
+        try:
+            tax_amount = float(data["tax_amount"])
+        except (TypeError, ValueError):
+            return _error("tax_amount must be a number.")
+        if tax_amount < 0:
+            return _error("tax_amount must be non-negative.")
+
+    category_id = data.get("category_id")
+    if category_id is not None and db.session.get(Category, category_id) is None:
+        return _error("Unknown category_id.", 404)
 
     transaction_date, error = _parse_date(data.get("transaction_date"))
     if error:
@@ -143,12 +163,13 @@ def create_transaction():
         user_id=user_id,
         merchant_name=(data.get("merchant_name") or "").strip()[:200] or None,
         transaction_date=transaction_date,
-        total_amount=data["total_amount"],
-        tax_amount=data.get("tax_amount"),
-        category_id=data.get("category_id"),
+        total_amount=total_amount,
+        tax_amount=tax_amount,
+        category_id=category_id,
         receipt_image_url=data.get("receipt_image_url"),
         ocr_raw_text=data.get("ocr_raw_text"),
         ocr_confidence=data.get("ocr_confidence"),
+        notes=(data.get("notes") or "").strip()[:2000] or None,
     )
     _apply_line_items(transaction, data.get("line_items"))
 
@@ -178,7 +199,7 @@ def update_transaction(transaction_id):
             return _error(error)
         transaction.transaction_date = transaction_date
 
-    for field in ("merchant_name", "total_amount", "tax_amount", "category_id"):
+    for field in ("merchant_name", "total_amount", "tax_amount", "category_id", "notes"):
         if field in data:
             setattr(transaction, field, data[field])
 

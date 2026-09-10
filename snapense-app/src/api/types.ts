@@ -40,6 +40,7 @@ export interface Transaction {
   receipt_image_url: string | null;
   ocr_raw_text: string | null;
   ocr_confidence: number | null;
+  notes: string | null;
   is_anomaly: boolean;
   anomaly_reason: string | null;
   created_at: string;
@@ -130,7 +131,18 @@ export interface TransactionUpdate {
   total_amount?: number;
   tax_amount?: number | null;
   category_id?: number | null;
+  notes?: string | null;
   line_items?: LineItemInput[];
+}
+
+/** What POST /transactions (manual, no receipt image) accepts. */
+export interface TransactionCreate {
+  merchant_name?: string | null;
+  transaction_date?: string | null;
+  total_amount: number;
+  tax_amount?: number | null;
+  category_id?: number | null;
+  notes?: string | null;
 }
 
 export interface Budget {
