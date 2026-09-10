@@ -1,5 +1,7 @@
 /** Thin typed wrappers over the backend routes. */
 
+import { Platform } from 'react-native';
+
 import api from './client';
 import type {
   AuthResponse,
@@ -73,19 +75,51 @@ export const transactionsApi = {
 
 export const receiptsApi = {
   /**
-   * Upload a receipt photo. `uri` comes from expo-image-picker; React Native's
-   * FormData takes the {uri, name, type} shape rather than a Blob.
+   * Upload a receipt photo. `uri` comes from expo-image-picker.
+   *
+   * Native (iOS/Android): React Native's FormData polyfill special-cases a
+   * plain {uri, name, type} object appended as a value and turns it into a
+   * real multipart file part - a RN-only convention, not part of the web
+   * FormData spec.
+   *
+   * Web: `FormData` is the browser's native implementation, which only
+   * accepts a string or a Blob/File as the appended value. Appending that
+   * same {uri, name, type} object instead gets coerced with String(value)
+   * ("[object Object]") and sent as a plain form field, not a file part -
+   * so Flask's `request.files` never sees it and 400s with "a receipt image
+   * is required". The `uri` here is also typically a `blob:`/`data:` URL on
+   * web, not a filesystem path, so there's no reliable filename/extension to
+   * read off it either. Fetching the uri back into a real Blob and reading
+   * its own `.type` sidesteps both problems.
    */
   async upload(uri: string) {
-    const name = uri.split('/').pop() ?? 'receipt.jpg';
-    const extension = name.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-
     const form = new FormData();
-    form.append('receipt', { uri, name, type: mimeType } as unknown as Blob);
+
+    if (Platform.OS === 'web') {
+      const blob = await (await fetch(uri)).blob();
+      const mimeType = blob.type || 'image/jpeg';
+      const extension = mimeType.split('/').pop() || 'jpg';
+      form.append('receipt', blob, `receipt.${extension}`);
+    } else {
+      const name = uri.split('/').pop() ?? 'receipt.jpg';
+      const extension = name.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+      form.append('receipt', { uri, name, type: mimeType } as unknown as Blob);
+    }
 
     const { data } = await api.post<UploadReceiptResponse>('/receipts/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        // Native: React Native's networking layer writes its own multipart
+        // boundary regardless of this value, so a hardcoded content-type is
+        // harmless. Web: a real browser XHR/fetch only auto-generates the
+        // required `boundary=...` parameter when *no* Content-Type has been
+        // set at all - and the api instance already defaults to
+        // 'application/json' (client.ts). Explicitly clearing it here (not
+        // just omitting the override) is what tells axios to drop that
+        // default and let the browser derive the correct multipart header
+        // from the FormData body itself.
+        'Content-Type': Platform.OS === 'web' ? undefined : 'multipart/form-data',
+      },
       // OCR round-trips through a vision model, so allow well past the default.
       timeout: 60000,
     });
