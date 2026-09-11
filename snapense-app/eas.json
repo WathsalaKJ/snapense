@@ -10,7 +10,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://snapense-api.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://snapense.onrender.com/api"
       }
     },
     "production": {
