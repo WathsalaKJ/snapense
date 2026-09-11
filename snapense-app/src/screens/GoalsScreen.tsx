@@ -18,7 +18,6 @@ import {
   EmptyState,
   ErrorNote,
   Loading,
-  PrimaryButton,
   ProgressBar,
   WebContainer,
   formatCurrency,
@@ -27,7 +26,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import GoalFormModal, { type GoalFormValues } from './GoalFormModal';
 import GoalsDesktopGrid from './web/GoalsDesktopGrid';
 import { webContentMaxWidth, webSpacing } from '../theme/web';
-import { accent, dangerAlpha, fontSize, fontWeight, radii, tealAlpha } from '../theme';
+import { accent, dangerAlpha, fontSize, fontWeight } from '../theme';
 
 function DeleteIcon() {
   return (
@@ -39,6 +38,16 @@ function DeleteIcon() {
         fill="none"
         strokeLinecap="round"
       />
+    </Svg>
+  );
+}
+
+/** Same glyph as TransactionsListScreen's header "+" button - the
+ * established convention for a screen's single primary add action. */
+function PlusIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <Path d="M8 1.5v13M1.5 8h13" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -338,21 +347,17 @@ export default function GoalsScreen() {
 
             <Pressable
               onPress={() => setModalVisible(true)}
-              accessibilityLabel="New goal"
+              accessibilityLabel="Add a new goal"
               style={{
                 width: 38,
                 height: 38,
                 borderRadius: 19,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: tealAlpha(0.16),
-                borderWidth: 1,
-                borderColor: tealAlpha(0.4),
+                backgroundColor: accent.teal,
               }}
             >
-              <Text style={{ color: accent.teal, fontSize: 20, fontWeight: '700', marginTop: -2 }}>
-                +
-              </Text>
+              <PlusIcon color="#06231F" />
             </Pressable>
           </View>
 
@@ -370,17 +375,13 @@ export default function GoalsScreen() {
               ))}
             </View>
           ) : (
+            // No action button here - matches BudgetsScreen's own empty
+            // state, which also relies on the header's "+" rather than
+            // repeating the same action twice on one screen.
             <EmptyState
               icon={<GoalIcon color={accent.teal} />}
               title="No goals yet"
               body="Create a savings goal and watch it fill up from budget under-spend and whatever you add by hand."
-              action={
-                <PrimaryButton
-                  label="New goal"
-                  onPress={() => setModalVisible(true)}
-                  style={{ paddingHorizontal: 28 }}
-                />
-              }
             />
           )}
         </ScrollView>
