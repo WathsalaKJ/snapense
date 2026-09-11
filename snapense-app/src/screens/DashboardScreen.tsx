@@ -3,11 +3,11 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
-import { budgetsApi, dashboardApi, insightsApi } from '../api/endpoints';
+import { budgetsApi, dashboardApi, goalsApi, insightsApi } from '../api/endpoints';
 import { errorMessage } from '../api/client';
-import type { Budget, DashboardSummary, SpendingInsight, Transaction } from '../api/types';
+import type { Budget, DashboardSummary, SavingsGoal, SpendingInsight, Transaction } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useIsDesktopWeb } from '../hooks/useResponsive';
@@ -47,6 +47,19 @@ function BudgetIcon() {
         d="M11.5 8.5a1.5 1.5 0 100 3h1.5v-3h-1.5z"
         fill={accent.teal}
       />
+    </Svg>
+  );
+}
+
+/** A bullseye - matches GoalsScreen's GoalIcon, redrawn locally here the same
+ * way BudgetIcon is (each screen keeps its own small SVGs rather than a
+ * shared icon module - see components/icons.tsx's header comment). */
+function GoalIcon() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={9} stroke={accent.teal} strokeWidth={1.6} />
+      <Circle cx={12} cy={12} r={5} stroke={accent.teal} strokeWidth={1.6} />
+      <Circle cx={12} cy={12} r={1.6} fill={accent.teal} />
     </Svg>
   );
 }
@@ -108,26 +121,30 @@ export default function DashboardScreen() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [insight, setInsight] = useState<SpendingInsight | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [regeneratingInsight, setRegeneratingInsight] = useState(false);
 
-  // Budgets only feed the desktop grid's summary card - mobile's Dashboard
-  // never fetched them (it just links to the Budgets screen), so this stays
-  // conditional to avoid an extra network round-trip there.
+  // Budgets and goals only feed the desktop grid's summary cards - mobile's
+  // Dashboard never fetched them (it just links to the Budgets/Goals
+  // screens), so this stays conditional to avoid extra network round-trips
+  // there.
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [summaryData, insightData, budgetData] = await Promise.all([
+      const [summaryData, insightData, budgetData, goalData] = await Promise.all([
         dashboardApi.summary(),
         insightsApi.list(1),
         isDesktopWeb ? budgetsApi.list() : Promise.resolve<Budget[]>([]),
+        isDesktopWeb ? goalsApi.list() : Promise.resolve<SavingsGoal[]>([]),
       ]);
       setSummary(summaryData);
       setInsight(insightData[0] ?? null);
       setBudgets(budgetData);
+      setGoals(goalData);
     } catch (err) {
       setError(errorMessage(err, 'Could not load your dashboard.'));
     } finally {
@@ -234,8 +251,10 @@ export default function DashboardScreen() {
             regeneratingInsight={regeneratingInsight}
             onRegenerateInsight={regenerateInsight}
             budgets={budgets}
+            goals={goals}
             onOpenAnomaly={openAnomaly}
             onOpenBudgets={() => navigation.navigate('Budgets')}
+            onOpenGoals={() => navigation.navigate('Goals')}
           />
         </ScrollView>
       </View>
@@ -337,6 +356,47 @@ export default function DashboardScreen() {
             </Text>
             <Text style={{ color: colors.muted, fontSize: fontSize.body }}>
               Set monthly limits by category
+            </Text>
+          </View>
+          <ChevronIcon color={colors.muted} />
+        </Pressable>
+
+        {/* Goals entry point - same shape as the Budgets card above (icon +
+            label + chevron); Goals gets no extra live numbers here, matching
+            Budgets' own mobile treatment, which also just links out rather
+            than previewing data inline. */}
+        <Pressable
+          onPress={() => navigation.navigate('Goals')}
+          style={({ pressed }) => ({
+            backgroundColor: pressed ? colors.soft : colors.card,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: 16,
+            paddingHorizontal: 18,
+            paddingVertical: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 13,
+          })}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: tealAlpha(0.16),
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <GoalIcon />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: colors.text, fontSize: 13.5, fontWeight: fontWeight.bold }}>
+              Goals
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body }}>
+              Track savings targets
             </Text>
           </View>
           <ChevronIcon color={colors.muted} />

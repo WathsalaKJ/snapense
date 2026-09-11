@@ -25,6 +25,8 @@ import ReceiptReviewScreen from '../screens/ReceiptReviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BudgetsScreen from '../screens/BudgetsScreen';
 import BudgetHistoryScreen from '../screens/BudgetHistoryScreen';
+import GoalsScreen from '../screens/GoalsScreen';
+import GoalDetailScreen from '../screens/GoalDetailScreen';
 
 import type { AppStackParamList, AuthStackParamList, TabParamList } from './types';
 
@@ -114,6 +116,16 @@ function AppNavigator() {
         name="BudgetHistory"
         component={BudgetHistoryScreen}
         options={{ title: 'Budget History', headerBackTitle: 'Back' }}
+      />
+      <AppStack.Screen
+        name="Goals"
+        component={GoalsScreen}
+        options={{ title: 'Goals', headerBackTitle: 'Back' }}
+      />
+      <AppStack.Screen
+        name="GoalDetail"
+        component={GoalDetailScreen}
+        options={{ title: 'Goal', headerBackTitle: 'Back' }}
       />
     </AppStack.Navigator>
   );

@@ -8,8 +8,13 @@ import type {
   Budget,
   BudgetHistoryResponse,
   Category,
+  ContributionCreate,
   DashboardSummary,
+  GoalContribution,
+  GoalCreate,
+  GoalUpdate,
   Paginated,
+  SavingsGoal,
   SpendingInsight,
   Transaction,
   TransactionCreate,
@@ -168,6 +173,46 @@ export const budgetsApi = {
       params: months ? { months } : undefined,
     });
     return data;
+  },
+};
+
+export const goalsApi = {
+  async list() {
+    const { data } = await api.get<{ goals: SavingsGoal[] }>('/goals');
+    return data.goals;
+  },
+
+  async create(payload: GoalCreate) {
+    const { data } = await api.post<{ goal: SavingsGoal }>('/goals', payload);
+    return data.goal;
+  },
+
+  async update(id: number, patch: GoalUpdate) {
+    const { data } = await api.patch<{ goal: SavingsGoal }>(`/goals/${id}`, patch);
+    return data.goal;
+  },
+
+  async remove(id: number) {
+    await api.delete(`/goals/${id}`);
+  },
+
+  async listContributions(goalId: number) {
+    const { data } = await api.get<{ contributions: GoalContribution[] }>(
+      `/goals/${goalId}/contributions`,
+    );
+    return data.contributions;
+  },
+
+  async addContribution(goalId: number, payload: ContributionCreate) {
+    const { data } = await api.post<{ contribution: GoalContribution }>(
+      `/goals/${goalId}/contributions`,
+      payload,
+    );
+    return data.contribution;
+  },
+
+  async removeContribution(goalId: number, contributionId: number) {
+    await api.delete(`/goals/${goalId}/contributions/${contributionId}`);
   },
 };
 

@@ -9,11 +9,19 @@
 import React from 'react';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
 
-import type { Budget, MonthSummary, SpendingInsight, Transaction, TrendPoint } from '../../api/types';
+import type {
+  Budget,
+  MonthSummary,
+  SavingsGoal,
+  SpendingInsight,
+  Transaction,
+  TrendPoint,
+} from '../../api/types';
 import { useTheme } from '../../context/ThemeContext';
 import { DonutChart, DonutLegend, TrendChart, type DonutSlice } from '../../components/charts';
 import InsightCard from '../../components/InsightCard';
 import { ProgressBar, formatCurrency } from '../../components';
+import { CompleteBadge, goalColor } from '../GoalsScreen';
 import { accent, dangerAlpha, fontSize, fontWeight, tealAlpha } from '../../theme';
 import { webFonts, webRadii, webShadow, webSpacing } from '../../theme/web';
 
@@ -76,8 +84,10 @@ export default function DashboardDesktopGrid({
   regeneratingInsight,
   onRegenerateInsight,
   budgets,
+  goals,
   onOpenAnomaly,
   onOpenBudgets,
+  onOpenGoals,
 }: {
   greeting: string;
   month: MonthSummary | undefined;
@@ -90,8 +100,10 @@ export default function DashboardDesktopGrid({
   regeneratingInsight: boolean;
   onRegenerateInsight: () => void;
   budgets: Budget[];
+  goals: SavingsGoal[];
   onOpenAnomaly: (transaction: Transaction) => void;
   onOpenBudgets: () => void;
+  onOpenGoals: () => void;
 }) {
   const { colors } = useTheme();
 
@@ -103,6 +115,7 @@ export default function DashboardDesktopGrid({
   const deltaColor = changePct == null ? colors.muted : isIncrease ? accent.danger : accent.success;
 
   const topBudgets = budgets.slice(0, 4);
+  const topGoals = goals.slice(0, 4);
 
   return (
     <View style={{ gap: webSpacing.xl, paddingBottom: webSpacing.xxl }}>
@@ -303,6 +316,81 @@ export default function DashboardDesktopGrid({
             </Pressable>
           )}
         </View>
+      </View>
+
+      {/* Goals summary - its own full-width row rather than squeezed into
+          row one alongside Budgets, and laid out as a row of compact tiles
+          rather than Budgets' vertical list: goals are fewer and longer-
+          running than per-category budgets, so a wide "at a glance" strip
+          fits the aspirational, less month-to-month nature of this data
+          better than another tall stacked card would. */}
+      <View style={cardStyle(colors)}>
+        <CardHeader
+          title="Goals"
+          action={
+            <Pressable onPress={onOpenGoals}>
+              {({ hovered }: any) => (
+                <Text
+                  style={{
+                    color: hovered ? accent.tealBright : accent.teal,
+                    fontSize: fontSize.caption,
+                    fontWeight: fontWeight.semibold,
+                    fontFamily: webFonts.body,
+                  }}
+                >
+                  View all →
+                </Text>
+              )}
+            </Pressable>
+          }
+        />
+        {topGoals.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: webSpacing.md }}>
+            {topGoals.map((goal) => {
+              const ratio = goal.target_amount > 0 ? goal.current_amount / goal.target_amount : 0;
+              const color = goalColor(goal);
+              return (
+                <View
+                  key={goal.id}
+                  style={{ flexBasis: '22%', flexGrow: 1, minWidth: 190, gap: 6 }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: colors.text2,
+                          fontSize: fontSize.small,
+                          fontWeight: fontWeight.semibold,
+                          fontFamily: webFonts.body,
+                        }}
+                      >
+                        {goal.name}
+                      </Text>
+                    </View>
+                    {goal.is_complete ? (
+                      <CompleteBadge />
+                    ) : (
+                      <Text style={{ color, fontSize: fontSize.caption, fontWeight: '800' }}>
+                        {Math.round(goal.percent_complete)}%
+                      </Text>
+                    )}
+                  </View>
+                  <ProgressBar ratio={ratio} color={color} />
+                  <Text style={{ color: colors.muted2, fontSize: fontSize.caption, fontFamily: webFonts.body }}>
+                    {formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <Pressable onPress={onOpenGoals}>
+            <Text style={{ color: colors.muted, fontSize: fontSize.body, fontFamily: webFonts.body }}>
+              No goals yet — create one to start tracking savings targets.
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       {/* AI insight - full-width and tealAlpha-tinted like the hero stat card,

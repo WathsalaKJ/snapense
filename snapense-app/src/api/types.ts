@@ -175,6 +175,53 @@ export interface BudgetHistoryResponse {
   budgets: BudgetHistoryEntry[];
 }
 
+export interface SavingsGoal {
+  id: number;
+  user_id: number;
+  name: string;
+  target_amount: number;
+  target_date: string | null;
+  /** Auto-inferred from budget under-spend (part A) - see the backend's goal_routes.py. */
+  auto_saved_amount: number;
+  /** Sum of logged GoalContribution rows (part B). */
+  manual_amount: number;
+  /** auto_saved_amount + manual_amount. */
+  current_amount: number;
+  /** Clamped 0-100 even if current_amount overshoots target_amount. */
+  percent_complete: number;
+  is_complete: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoalContribution {
+  id: number;
+  goal_id: number;
+  user_id: number;
+  amount: number;
+  note: string | null;
+  contributed_at: string;
+  created_at: string;
+}
+
+export interface GoalCreate {
+  name: string;
+  target_amount: number;
+  target_date?: string | null;
+}
+
+export interface GoalUpdate {
+  name?: string;
+  target_amount?: number;
+  target_date?: string | null;
+}
+
+export interface ContributionCreate {
+  amount: number;
+  note?: string | null;
+  contributed_at?: string | null;
+}
+
 export interface TransactionFilters {
   category?: string;
   start_date?: string;

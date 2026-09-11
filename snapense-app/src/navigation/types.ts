@@ -22,6 +22,8 @@ export type AppStackParamList = {
   ReceiptReview: { transactionId: number; needsReview: boolean };
   Budgets: undefined;
   BudgetHistory: undefined;
+  Goals: undefined;
+  GoalDetail: { goalId: number };
 };
 
 export type RootStackParamList = AuthStackParamList & AppStackParamList;
