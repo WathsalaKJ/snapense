@@ -1,6 +1,6 @@
 """SQLAlchemy models for Snapense."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from flask_sqlalchemy import SQLAlchemy
@@ -56,6 +56,13 @@ class User(db.Model):
     )
     budgets = db.relationship(
         "Budget",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+    savings_goals = db.relationship(
+        "SavingsGoal",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -302,6 +309,111 @@ class Budget(db.Model):
         return "<Budget {} user={} category={}>".format(
             self.id, self.user_id, self.category_id
         )
+
+
+class SavingsGoal(db.Model):
+    """A savings target the user is working towards.
+
+    Like Budget.amount_spent_this_month, progress is never stored - it's
+    computed live in routes/goal_routes.py as the sum of (A) surplus
+    auto-inferred from monthly budget under-spend and (B) the user's own
+    GoalContribution rows.
+    """
+
+    __tablename__ = "savings_goals"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = db.Column(db.String(120), nullable=False)
+    target_amount = db.Column(db.Numeric(12, 2), nullable=False)
+    target_date = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    user = db.relationship("User", back_populates="savings_goals")
+    contributions = db.relationship(
+        "GoalContribution",
+        back_populates="goal",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+        order_by="GoalContribution.contributed_at.desc()",
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "target_amount > 0", name="ck_savings_goals_target_amount_positive"
+        ),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "target_amount": _decimal_to_float(self.target_amount),
+            "target_date": _iso(self.target_date),
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
+        }
+
+    def __repr__(self):
+        return "<SavingsGoal {} user={}>".format(self.id, self.user_id)
+
+
+class GoalContribution(db.Model):
+    """A manual contribution the user logs toward a SavingsGoal - part B of
+    its progress. Automatic surplus (part A) is never written here as a
+    row; it stays purely computed so the two sources stay cleanly
+    separable in the API response.
+    """
+
+    __tablename__ = "goal_contributions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    goal_id = db.Column(
+        db.Integer,
+        db.ForeignKey("savings_goals.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    note = db.Column(db.Text, nullable=True)
+    contributed_at = db.Column(db.Date, nullable=False, default=date.today)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    goal = db.relationship("SavingsGoal", back_populates="contributions")
+
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_goal_contributions_amount_positive"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "goal_id": self.goal_id,
+            "user_id": self.user_id,
+            "amount": _decimal_to_float(self.amount),
+            "note": self.note,
+            "contributed_at": _iso(self.contributed_at),
+            "created_at": _iso(self.created_at),
+        }
+
+    def __repr__(self):
+        return "<GoalContribution {} goal={}>".format(self.id, self.goal_id)
 
 
 # Category colours. "Other" keeps a neutral grey; the rest are the app palette.
