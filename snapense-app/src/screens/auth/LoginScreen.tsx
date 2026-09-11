@@ -166,10 +166,18 @@ export default function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          // No justifyContent: 'center' here - on a short/narrow web viewport
+          // (react-native-web, unlike native, has no keyboard-driven resize
+          // to fall back on) centering an overflowing flex container clips
+          // the start-side content, since a plain `center` line can overflow
+          // both ways but scrolling can only ever reach the end side. A
+          // fixed top offset instead guarantees the whole form is always
+          // in-bounds and scrollable, on every viewport height.
           contentContainerStyle={{
             flexGrow: 1,
-            justifyContent: 'center',
-            padding: 24,
+            paddingHorizontal: 24,
+            paddingTop: 48,
+            paddingBottom: 40,
             gap: 28,
           }}
           keyboardShouldPersistTaps="handled"

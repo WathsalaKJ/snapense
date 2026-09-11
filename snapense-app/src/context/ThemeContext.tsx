@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform, useColorScheme } from 'react-native';
 
 import { themes, type ThemeColors, type ThemeName } from '../theme/colors';
 
@@ -30,16 +30,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
   const useSystemTheme = useCallback(() => setOverride(null), []);
 
+  const colors = themes[theme];
+
+  // Keeps the web-only autofill CSS override (fixAutofillStyles.ts) in sync
+  // with the active theme - that override lives in a real <style> tag since
+  // :-webkit-autofill can't be reached through RN's style system, so it
+  // reads these custom properties instead of a color baked in at injection
+  // time. No-op on native (no `document`).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    document.documentElement.style.setProperty('--sn-autofill-bg', colors.bg);
+    document.documentElement.style.setProperty('--sn-autofill-text', colors.text);
+  }, [colors]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
-      colors: themes[theme],
+      colors,
       isSystem: override === null,
       setTheme,
       toggleTheme,
       useSystemTheme,
     }),
-    [theme, override, setTheme, toggleTheme, useSystemTheme],
+    [theme, colors, override, setTheme, toggleTheme, useSystemTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
