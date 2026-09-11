@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import { fixAutofillStyles } from './src/web/fixAutofillStyles';
 import { loadWebFonts } from './src/web/loadWebFonts';
 
 /** Status bar text has to follow the in-app theme, not the OS. */
@@ -16,9 +17,10 @@ function ThemedStatusBar() {
 
 export default function App() {
   // No-op on native (Platform.OS check happens inside); loads the desktop
-  // web font pairing once, on mount.
+  // web font pairing and the autofill CSS override once, on mount.
   React.useEffect(() => {
     loadWebFonts();
+    fixAutofillStyles();
   }, []);
 
   return (

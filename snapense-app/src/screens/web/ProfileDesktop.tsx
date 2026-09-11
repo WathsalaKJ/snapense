@@ -10,11 +10,13 @@
 
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { API_BASE_URL } from '../../api/config';
 import type { ThemeName } from '../../theme/colors';
 import { accent, fontSize, fontWeight, tealAlpha } from '../../theme';
 import { webFonts, webRadii, webShadow, webSpacing } from '../../theme/web';
+
+type ThemeIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 function SettingsCard({
   title,
@@ -91,10 +93,28 @@ export default function ProfileDesktop({
 }) {
   const initial = (userName ?? '?').charAt(0).toUpperCase();
 
-  const options: { key: string; label: string; active: boolean; onPress: () => void }[] = [
-    { key: 'dark', label: 'Dark', active: !isSystem && theme === 'dark', onPress: () => onSetTheme('dark') },
-    { key: 'light', label: 'Light', active: !isSystem && theme === 'light', onPress: () => onSetTheme('light') },
-    { key: 'system', label: 'System', active: isSystem, onPress: onUseSystemTheme },
+  const options: { key: string; label: string; icon: ThemeIconName; active: boolean; onPress: () => void }[] = [
+    {
+      key: 'dark',
+      label: 'Dark',
+      icon: 'weather-night',
+      active: !isSystem && theme === 'dark',
+      onPress: () => onSetTheme('dark'),
+    },
+    {
+      key: 'light',
+      label: 'Light',
+      icon: 'weather-sunny',
+      active: !isSystem && theme === 'light',
+      onPress: () => onSetTheme('light'),
+    },
+    {
+      key: 'system',
+      label: 'System',
+      icon: 'theme-light-dark',
+      active: isSystem,
+      onPress: onUseSystemTheme,
+    },
   ];
 
   return (
@@ -159,13 +179,19 @@ export default function ProfileDesktop({
                 <View
                   style={{
                     alignItems: 'center',
-                    paddingVertical: 12,
+                    gap: 6,
+                    paddingVertical: 13,
                     borderRadius: 12,
                     backgroundColor: option.active ? accent.teal : hovered ? colors.soft : 'transparent',
                     borderWidth: 1,
                     borderColor: option.active ? accent.teal : colors.line2,
                   }}
                 >
+                  <MaterialCommunityIcons
+                    name={option.icon}
+                    size={20}
+                    color={option.active ? '#06231F' : colors.text2}
+                  />
                   <Text
                     style={{
                       color: option.active ? '#06231F' : colors.text2,
@@ -180,13 +206,6 @@ export default function ProfileDesktop({
               )}
             </Pressable>
           ))}
-        </View>
-      </SettingsCard>
-
-      <SettingsCard title="Developer" colors={colors}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: colors.muted, fontSize: fontSize.small, fontFamily: webFonts.body }}>API endpoint</Text>
-          <Text style={{ color: colors.text2, fontSize: fontSize.small, fontFamily: webFonts.body }}>{API_BASE_URL}</Text>
         </View>
       </SettingsCard>
 

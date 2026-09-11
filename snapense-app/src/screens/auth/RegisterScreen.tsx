@@ -271,7 +271,18 @@ export default function RegisterScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 26 }}
+          // Same fix as LoginScreen: dropped justifyContent: 'center' since
+          // this screen has even more fields (4 inputs + strength meter),
+          // making it the most likely to overflow a short web viewport and
+          // clip its top content when centered. See LoginScreen.tsx for the
+          // full reasoning.
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: 24,
+            paddingTop: 48,
+            paddingBottom: 40,
+            gap: 26,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ alignItems: 'center', gap: spacing.md }}>
