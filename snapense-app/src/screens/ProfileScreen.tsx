@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -25,12 +25,15 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const isDesktopWeb = useIsDesktopWeb();
 
+  // Order matches iOS's own Settings > Display (Automatic, Light, Dark).
   const options: { label: string; icon: ThemeIconName; active: boolean; onPress: () => void }[] = [
     {
-      label: 'Dark',
-      icon: 'weather-night',
-      active: !isSystem && theme === 'dark',
-      onPress: () => setTheme('dark'),
+      label: 'Automatic',
+      // A half-sun-half-moon glyph - reads as "follows the device" without
+      // needing a fourth, separate icon concept.
+      icon: 'theme-light-dark',
+      active: isSystem,
+      onPress: useSystemTheme,
     },
     {
       label: 'Light',
@@ -39,12 +42,10 @@ export default function ProfileScreen() {
       onPress: () => setTheme('light'),
     },
     {
-      label: 'System',
-      // A half-sun-half-moon glyph - reads as "follows the device" without
-      // needing a fourth, separate icon concept.
-      icon: 'theme-light-dark',
-      active: isSystem,
-      onPress: useSystemTheme,
+      label: 'Dark',
+      icon: 'weather-night',
+      active: !isSystem && theme === 'dark',
+      onPress: () => setTheme('dark'),
     },
   ];
 
@@ -119,53 +120,61 @@ export default function ProfileScreen() {
           </Text>
         </Card>
 
-        <Card style={{ gap: spacing.lg }}>
+        {/* iOS Settings > Display style: one card, one full-width row per
+            option, a checkmark on whichever is currently selected - rather
+            than the segmented-button treatment this used to have. */}
+        <Card style={{ padding: 0, overflow: 'hidden' }}>
           <Text
             style={{
               color: colors.text,
               fontSize: fontSize.base,
               fontWeight: fontWeight.semibold,
+              paddingHorizontal: spacing.xxl,
+              paddingTop: spacing.xxl,
+              paddingBottom: spacing.md,
             }}
           >
             Appearance
           </Text>
 
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            {options.map((option) => (
-              <Pressable
-                key={option.label}
-                onPress={option.onPress}
-                accessibilityRole="button"
-                accessibilityLabel={`${option.label} theme`}
-                accessibilityState={{ selected: option.active }}
+          {options.map((option, index) => (
+            <Pressable
+              key={option.label}
+              onPress={option.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`${option.label} theme`}
+              accessibilityState={{ selected: option.active }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.lg,
+                paddingHorizontal: spacing.xxl,
+                paddingVertical: 13,
+                backgroundColor: pressed ? colors.soft : 'transparent',
+                borderBottomWidth: index < options.length - 1 ? StyleSheet.hairlineWidth : 0,
+                borderBottomColor: colors.line,
+              })}
+            >
+              <MaterialCommunityIcons
+                name={option.icon}
+                size={20}
+                color={option.active ? accent.teal : colors.text2}
+              />
+              <Text
                 style={{
                   flex: 1,
-                  alignItems: 'center',
-                  gap: 5,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  backgroundColor: option.active ? accent.teal : colors.soft,
-                  borderWidth: 1,
-                  borderColor: option.active ? accent.teal : colors.line,
+                  color: colors.text,
+                  fontSize: fontSize.base,
+                  fontWeight: fontWeight.medium,
                 }}
               >
-                <MaterialCommunityIcons
-                  name={option.icon}
-                  size={20}
-                  color={option.active ? '#06231F' : colors.text2}
-                />
-                <Text
-                  style={{
-                    color: option.active ? '#06231F' : colors.text2,
-                    fontSize: fontSize.small,
-                    fontWeight: fontWeight.semibold,
-                  }}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                {option.label}
+              </Text>
+              {option.active ? (
+                <MaterialCommunityIcons name="check" size={20} color={accent.teal} />
+              ) : null}
+            </Pressable>
+          ))}
         </Card>
 
         <PrimaryButton

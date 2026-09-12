@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "Snapense",
     "slug": "snapense-app",
@@ -26,8 +26,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -56,7 +57,11 @@
     "scheme": "snapense",
     "backgroundColor": "#111827",
     "extra": {
-      "apiBaseUrl": "https://snapense.onrender.com/api"
-    }
+      "apiBaseUrl": "https://snapense.onrender.com/api",
+      "eas": {
+        "projectId": "ceb60ce0-a177-4ec4-8335-1e4ce50d31a9"
+      }
+    },
+    "owner": "wathsu"
   }
 }
